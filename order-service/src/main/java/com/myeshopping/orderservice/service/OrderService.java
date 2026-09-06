@@ -3,7 +3,9 @@ package com.myeshopping.orderservice.service;
 import com.myeshopping.orderservice.dto.*;
 import com.myeshopping.orderservice.entity.*;
 import com.myeshopping.orderservice.repository.OrderRepository;
+import com.myeshopping.orderservice.event.OrderEventPublisher;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
@@ -12,6 +14,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class OrderService {
     private final OrderRepository orderRepository;
+    private final ObjectProvider<OrderEventPublisher> orderEventPublisher;
     private static final Map<OrderStatus, Set<OrderStatus>> TRANSITIONS = Map.of(
             OrderStatus.ORDERED, Set.of(OrderStatus.PICKING_PENDING, OrderStatus.CANCELLED),
             OrderStatus.PICKING_PENDING, Set.of(OrderStatus.PICKING_IN_PROGRESS, OrderStatus.CANCELLED),
@@ -34,7 +37,12 @@ public class OrderService {
             total += lineRequest.getUnitPrice() * lineRequest.getQuantity();
         }
         order.setTotalAmount(total);
-        return orderRepository.save(order);
+        Order savedOrder = orderRepository.save(order);
+        OrderEventPublisher publisher = orderEventPublisher.getIfAvailable();
+        if (publisher != null) {
+            publisher.publishCreated(savedOrder);
+        }
+        return savedOrder;
     }
 
     @Transactional(readOnly = true)

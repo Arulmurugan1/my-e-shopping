@@ -1,0 +1,11 @@
+CREATE DATABASE authdb;
+CREATE DATABASE customerdb;
+CREATE DATABASE inventorydb;
+CREATE DATABASE cartdb;
+CREATE DATABASE orderdb;
+CREATE DATABASE paymentdb;
+CREATE DATABASE pickingdb;
+CREATE DATABASE shipmentdb;
+CREATE DATABASE deliverydb;
+CREATE DATABASE invoicedb;
+CREATE DATABASE returnrefunddb;
