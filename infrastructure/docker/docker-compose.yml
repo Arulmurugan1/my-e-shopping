@@ -6,21 +6,33 @@ services:
       POSTGRES_PASSWORD: myeshopping
       POSTGRES_DB: myeshopping
     ports: ["5432:5432"]
-    volumes: [postgres-data:/var/lib/postgresql/data]
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ../postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U myeshopping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks: [eshop-platform]
   redis:
     image: redis:7-alpine
     ports: ["6379:6379"]
+    command: redis-server --appendonly yes
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [eshop-platform]
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.1
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     ports: ["2181:2181"]
+    networks: [eshop-platform]
   kafka:
     image: confluentinc/cp-kafka:7.6.1
     depends_on: [zookeeper]
@@ -31,6 +43,7 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks: [eshop-platform]
   prometheus:
     image: prom/prometheus:v2.54.1
     ports: ["9090:9090"]
@@ -42,3 +55,6 @@ services:
     depends_on: [prometheus]
 volumes:
   postgres-data:
+  redis-data:
+networks:
+  eshop-platform:
