@@ -1,0 +1,65 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: auth-service
+          uri: http://localhost:8081
+          predicates: [Path=/api/v1/auth/**]
+        - id: inventory-service
+          uri: http://localhost:8082
+          predicates: ["Path=/api/v1/products/**,/api/v1/inventory/**"]
+        - id: cart-service
+          uri: http://localhost:8083
+          predicates: [Path=/api/v1/cart/**]
+        - id: order-service
+          uri: http://localhost:8084
+          predicates: [Path=/api/v1/orders/**]
+        - id: payment-service
+          uri: http://localhost:8085
+          predicates: [Path=/api/v1/payments/**]
+        - id: picking-service
+          uri: http://localhost:8086
+          predicates: [Path=/api/v1/picking/**]
+        - id: shipment-service
+          uri: http://localhost:8087
+          predicates: [Path=/api/v1/shipments/**]
+        - id: delivery-service
+          uri: http://localhost:8088
+          predicates: [Path=/api/v1/deliveries/**]
+        - id: invoice-service
+          uri: http://localhost:8089
+          predicates: [Path=/api/v1/invoices/**]
+        - id: return-refund-service
+          uri: http://localhost:8090
+          predicates: [Path=/api/v1/returns/**]
+        - id: customer-service
+          uri: http://localhost:8091
+          predicates: [Path=/api/v1/customers/**]
+        - id: cartonization-service
+          uri: http://localhost:8092
+          predicates: [Path=/api/v1/cartonization/**]
+        - id: order-group-service
+          uri: http://localhost:8093
+          predicates: [Path=/api/v1/order-groups/**]
+        - id: notification-service
+          uri: http://localhost:8094
+          predicates: [Path=/api/v1/notifications/**]
+        - id: logging-service
+          uri: http://localhost:8095
+          predicates: [Path=/api/v1/logs/**]
+        - id: audit-service
+          uri: http://localhost:8096
+          predicates: [Path=/api/v1/audit/**]
+        - id: scheduler-service
+          uri: http://localhost:8097
+          predicates: [Path=/api/v1/jobs/**]
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,gateway

@@ -1,0 +1,32 @@
+name: build
+on:
+  push:
+  pull_request:
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [auth-service, customer-service, inventory-service, cart-service, order-service, payment-service, picking-service, shipment-service, delivery-service, invoice-service, return-refund-service, api-gateway]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - run: mvn -B test -DforkCount=0
+        working-directory: my-e-shopping/${{ matrix.service }}
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: my-e-shopping/frontend/angular-app/package-lock.json
+      - run: npm ci
+        working-directory: my-e-shopping/frontend/angular-app
+      - run: npm run build
+        working-directory: my-e-shopping/frontend/angular-app

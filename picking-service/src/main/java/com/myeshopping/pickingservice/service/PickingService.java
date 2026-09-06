@@ -1,0 +1,8 @@
+package com.myeshopping.pickingservice.service;
+import com.myeshopping.pickingservice.dto.PickingRequest; import com.myeshopping.pickingservice.entity.*; import com.myeshopping.pickingservice.repository.PickingTaskRepository; import lombok.RequiredArgsConstructor; import org.springframework.stereotype.Service; import org.springframework.transaction.annotation.Transactional; import java.util.*;
+@Service @RequiredArgsConstructor public class PickingService {
+ private final PickingTaskRepository repository; private static final Map<PickingStatus,Set<PickingStatus>> TRANSITIONS=Map.of(PickingStatus.PENDING,Set.of(PickingStatus.IN_PROGRESS,PickingStatus.CANCELLED),PickingStatus.IN_PROGRESS,Set.of(PickingStatus.COMPLETED));
+ @Transactional public PickingTask create(PickingRequest request){return repository.save(PickingTask.builder().orderId(request.getOrderId()).itemCount(request.getItemCount()).status(PickingStatus.PENDING).build());}
+ @Transactional(readOnly=true) public PickingTask get(Long id){return repository.findById(id).orElseThrow(()->new IllegalArgumentException("Picking task not found: "+id));}
+ @Transactional public PickingTask transition(Long id,String targetText){PickingTask task=get(id); PickingStatus target; try{target=PickingStatus.valueOf(targetText);}catch(IllegalArgumentException e){throw new IllegalArgumentException("Unknown picking status: "+targetText);} if(!TRANSITIONS.getOrDefault(task.getStatus(),Set.of()).contains(target))throw new IllegalArgumentException("Invalid picking transition from "+task.getStatus()+" to "+target); task.setStatus(target); return repository.save(task);}
+}

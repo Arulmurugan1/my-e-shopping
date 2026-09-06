@@ -1,0 +1,3 @@
+package com.myeshopping.logging;
+import org.springframework.boot.*; import org.springframework.boot.autoconfigure.*; import org.springframework.web.bind.annotation.*; import java.time.*; import java.util.*; import java.util.concurrent.*;
+@SpringBootApplication @RestController @RequestMapping("/api/v1/logs") public class LoggingApplication { private final List<Map<String,Object>> logs=new CopyOnWriteArrayList<>(); public static void main(String[]a){SpringApplication.run(LoggingApplication.class,a);} @PostMapping public Map<String,Object> ingest(@RequestBody Map<String,Object> log){Map<String,Object> entry=new LinkedHashMap<>(log);entry.putIfAbsent("timestamp",Instant.now());logs.add(entry);return entry;} @GetMapping public List<Map<String,Object>> all(){return logs;} }
