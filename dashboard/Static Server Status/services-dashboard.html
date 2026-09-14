@@ -1,0 +1,514 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Microservices Dashboard</title>
+<style>
+  body { font-family: Segoe UI, Arial, sans-serif; background: #1e1e2e; color: #e4e4e4; margin: 0; padding: 32px; }
+  h1 { margin: 0 0 4px; }
+  .meta { color: #9a9ab0; margin-bottom: 20px; font-size: 13px; }
+  .toolbar { display: flex; align-items: center; gap: 24px; margin-bottom: 20px; flex-wrap: wrap; }
+  .tabs { display: flex; gap: 8px; }
+  .tab-btn { background: #27273a; color: #e4e4e4; border: 1px solid #3a3a52; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; }
+  .tab-btn.active { background: #7aa2ff; color: #14141f; border-color: #7aa2ff; }
+  .refresh-btn { background: #34d058; color: #0b1f0f; border: none; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 700; }
+  .refresh-btn:hover { background: #2fc350; }
+  .auto-refresh { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #c8c8dc; }
+  .countdown { font-variant-numeric: tabular-nums; font-weight: 700; color: #7aa2ff; min-width: 20px; display: inline-block; }
+  .switch { position: relative; display: inline-block; width: 42px; height: 22px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #4a4a63; transition: .2s; border-radius: 22px; }
+  .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .2s; border-radius: 50%; }
+  input:checked + .slider { background-color: #34d058; }
+  input:checked + .slider:before { transform: translateX(20px); }
+  table { border-collapse: collapse; width: 100%; background: #27273a; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: none; }
+  table.visible { display: table; }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #3a3a52; font-size: 14px; }
+  th { background: #32324a; color: #ffffff; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; cursor: pointer; user-select: none; white-space: nowrap; }
+  th:hover { background: #3d3d58; }
+  th .arrow { font-size: 10px; opacity: 0.7; margin-left: 4px; }
+  tr:hover { background: #32324a; }
+  td.svc { font-weight: 600; }
+  a { color: #7aa2ff; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .ok { color: #34d058; font-weight: 700; }
+  .bad { color: #ff5c5c; font-weight: 700; }
+</style>
+</head>
+<body>
+  <h1>Microservices Dashboard</h1>
+  <div class="meta">Generated at 2026-09-14 15:11:32 -- run generate-dashboard.ps1 (or generate-dashboard.bat) to refresh data</div>
+
+  <div class="toolbar">
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-instances" onclick="showTab('instances')">Instances</button>
+      <button class="tab-btn" id="tab-databases" onclick="showTab('databases')">Databases</button>
+    </div>
+    <button class="refresh-btn" onclick="location.reload()">Refresh</button>
+    <button class="refresh-btn" id="pwToggleBtn" style="background:#7aa2ff;color:#14141f;" onclick="togglePasswords()">Show Passwords</button>
+    <div class="auto-refresh">
+      <label class="switch">
+        <input type="checkbox" id="autoRefreshToggle" onchange="toggleAutoRefresh()">
+        <span class="slider"></span>
+      </label>
+      <span>Auto-refresh every 5s</span>
+      <span id="countdown" class="countdown"></span>
+    </div>
+  </div>
+
+  <table id="instances-table" class="visible">
+    <thead>
+      <tr>
+        <th onclick="sortTable('instances-table',0,'text')">Service<span class="arrow"></span></th>
+        <th onclick="sortTable('instances-table',1,'text')">URL<span class="arrow"></span></th>
+        <th onclick="sortTable('instances-table',2,'text')">Status<span class="arrow"></span></th>
+        <th onclick="sortTable('instances-table',3,'text')">Live<span class="arrow"></span></th>
+        <th onclick="sortTable('instances-table',4,'text')">Started<span class="arrow"></span></th>
+        <th onclick="sortTable('instances-table',5,'num')">Storage (Memory)<span class="arrow"></span></th>
+        <th onclick="sortTable('instances-table',6,'num')">PID<span class="arrow"></span></th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td class="svc">api-gateway</td>
+      <td><a href="http://localhost:8080" target="_blank">http://localhost:8080</a></td>
+      <td class="bad">Yet To Start</td>
+      <td class="bad">Not Running</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+    </tr>
+    <tr>
+      <td class="svc">audit-service</td>
+      <td><a href="http://localhost:8096" target="_blank">http://localhost:8096</a></td>
+      <td class="bad">Yet To Start</td>
+      <td class="bad">Not Running</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+    </tr>
+    <tr>
+      <td class="svc">auth-service</td>
+      <td><a href="http://localhost:8081" target="_blank">http://localhost:8081</a></td>
+      <td class="bad">Yet To Start</td>
+      <td class="bad">Not Running</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+    </tr>
+    <tr>
+      <td class="svc">cartonization-service</td>
+      <td><a href="http://localhost:8092" target="_blank">http://localhost:8092</a></td>
+      <td class="bad">Yet To Start</td>
+      <td class="bad">Not Running</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+    </tr>
+    <tr>
+      <td class="svc">cart-service</td>
+      <td><a href="http://localhost:8083" target="_blank">http://localhost:8083</a></td>
+      <td class="bad">Yet To Start</td>
+      <td class="bad">Not Running</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+    </tr>
+    <tr>
+      <td class="svc">customer-service</td>
+      <td><a href="http://localhost:8091" target="_blank">http://localhost:8091</a></td>
+      <td class="bad">Yet To Start</td>
+      <td class="bad">Not Running</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+    </tr>
+    <tr>
+      <td class="svc">delivery-service</td>
+      <td><a href="http://localhost:8088" target="_blank">http://localhost:8088</a></td>
+      <td class="bad">Yet To Start</td>
+      <td class="bad">Not Running</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+    </tr>
+    <tr>
+      <td class="svc">frontend</td>
+      <td><a href="http://localhost:4200" target="_blank">http://localhost:4200</a></td>
+      <td class="bad">Yet To Start</td>
+      <td class="bad">Not Running</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+    </tr>
+    <tr>
+      <td class="svc">inventory-service</td>
+      <td><a href="http://localhost:8082" target="_blank">http://localhost:8082</a></td>
+      <td class="bad">Yet To Start</td>
+      <td class="bad">Not Running</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+    </tr>
+    <tr>
+      <td class="svc">invoice-service</td>
+      <td><a href="http://localhost:8089" target="_blank">http://localhost:8089</a></td>
+      <td class="bad">Yet To Start</td>
+      <td class="bad">Not Running</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+    </tr>
+    <tr>
+      <td class="svc">logging-service</td>
+      <td><a href="http://localhost:8095" target="_blank">http://localhost:8095</a></td>
+      <td class="bad">Yet To Start</td>
+      <td class="bad">Not Running</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+    </tr>
+    <tr>
+      <td class="svc">notification-service</td>
+      <td><a href="http://localhost:8094" target="_blank">http://localhost:8094</a></td>
+      <td class="bad">Yet To Start</td>
+      <td class="bad">Not Running</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+    </tr>
+    <tr>
+      <td class="svc">order-group-service</td>
+      <td><a href="http://localhost:8093" target="_blank">http://localhost:8093</a></td>
+      <td class="bad">Yet To Start</td>
+      <td class="bad">Not Running</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+    </tr>
+    <tr>
+      <td class="svc">order-service</td>
+      <td><a href="http://localhost:8084" target="_blank">http://localhost:8084</a></td>
+      <td class="bad">Yet To Start</td>
+      <td class="bad">Not Running</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+    </tr>
+    <tr>
+      <td class="svc">payment-service</td>
+      <td><a href="http://localhost:8085" target="_blank">http://localhost:8085</a></td>
+      <td class="bad">Yet To Start</td>
+      <td class="bad">Not Running</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+    </tr>
+    <tr>
+      <td class="svc">picking-service</td>
+      <td><a href="http://localhost:8086" target="_blank">http://localhost:8086</a></td>
+      <td class="bad">Yet To Start</td>
+      <td class="bad">Not Running</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+    </tr>
+    <tr>
+      <td class="svc">return-refund-service</td>
+      <td><a href="http://localhost:8090" target="_blank">http://localhost:8090</a></td>
+      <td class="bad">Yet To Start</td>
+      <td class="bad">Not Running</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+    </tr>
+    <tr>
+      <td class="svc">scheduler-service</td>
+      <td><a href="http://localhost:8097" target="_blank">http://localhost:8097</a></td>
+      <td class="bad">Yet To Start</td>
+      <td class="bad">Not Running</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+    </tr>
+    <tr>
+      <td class="svc">shipment-service</td>
+      <td><a href="http://localhost:8087" target="_blank">http://localhost:8087</a></td>
+      <td class="bad">Yet To Start</td>
+      <td class="bad">Not Running</td>
+      <td>N/A</td>
+      <td>N/A</td>
+      <td>N/A</td>
+    </tr>
+    </tbody>
+  </table>
+
+  <table id="databases-table">
+    <thead>
+      <tr>
+        <th onclick="sortTable('databases-table',0,'text')">Service<span class="arrow"></span></th>
+        <th onclick="sortTable('databases-table',1,'text')">DB Type<span class="arrow"></span></th>
+        <th onclick="sortTable('databases-table',2,'text')">Host:Port<span class="arrow"></span></th>
+        <th onclick="sortTable('databases-table',3,'text')">Database Name<span class="arrow"></span></th>
+        <th onclick="sortTable('databases-table',4,'text')">Username<span class="arrow"></span></th>
+        <th>Password</th>
+        <th onclick="sortTable('databases-table',6,'text')">DB Status<span class="arrow"></span></th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td class="svc">api-gateway</td>
+      <td>None</td>
+      <td>N/A</td>
+      <td>-</td>
+      <td>-</td>
+      <td class="pw-cell" data-pw="-">********</td>
+      <td class="">N/A</td>
+    </tr>
+    <tr>
+      <td class="svc">audit-service</td>
+      <td>Oracle</td>
+      <td>localhost:1521</td>
+      <td>XE</td>
+      <td>system</td>
+      <td class="pw-cell" data-pw="myeshopping123">********</td>
+      <td class="bad">Unreachable</td>
+    </tr>
+    <tr>
+      <td class="svc">auth-service</td>
+      <td>Oracle</td>
+      <td>localhost:1521</td>
+      <td>XE</td>
+      <td>system</td>
+      <td class="pw-cell" data-pw="myeshopping123">********</td>
+      <td class="bad">Unreachable</td>
+    </tr>
+    <tr>
+      <td class="svc">cartonization-service</td>
+      <td>None</td>
+      <td>N/A</td>
+      <td>-</td>
+      <td>-</td>
+      <td class="pw-cell" data-pw="-">********</td>
+      <td class="">N/A</td>
+    </tr>
+    <tr>
+      <td class="svc">cart-service</td>
+      <td>PostgreSQL</td>
+      <td>localhost:5432</td>
+      <td>cart_db</td>
+      <td>myeshopping</td>
+      <td class="pw-cell" data-pw="myeshopping">********</td>
+      <td class="bad">Unreachable</td>
+    </tr>
+    <tr>
+      <td class="svc">customer-service</td>
+      <td>PostgreSQL</td>
+      <td>localhost:5432</td>
+      <td>customer_db</td>
+      <td>myeshopping</td>
+      <td class="pw-cell" data-pw="myeshopping">********</td>
+      <td class="bad">Unreachable</td>
+    </tr>
+    <tr>
+      <td class="svc">delivery-service</td>
+      <td>MySQL</td>
+      <td>localhost:3306</td>
+      <td>delivery_db</td>
+      <td>myeshopping</td>
+      <td class="pw-cell" data-pw="myeshopping">********</td>
+      <td class="bad">Unreachable</td>
+    </tr>
+    <tr>
+      <td class="svc">frontend</td>
+      <td>None</td>
+      <td>N/A</td>
+      <td>-</td>
+      <td>-</td>
+      <td class="pw-cell" data-pw="-">********</td>
+      <td class="">N/A</td>
+    </tr>
+    <tr>
+      <td class="svc">inventory-service</td>
+      <td>MongoDB</td>
+      <td>localhost:27017</td>
+      <td>inventory_db</td>
+      <td>myeshopping</td>
+      <td class="pw-cell" data-pw="myeshopping">********</td>
+      <td class="bad">Unreachable</td>
+    </tr>
+    <tr>
+      <td class="svc">invoice-service</td>
+      <td>PostgreSQL</td>
+      <td>localhost:5432</td>
+      <td>invoice_db</td>
+      <td>myeshopping</td>
+      <td class="pw-cell" data-pw="myeshopping">********</td>
+      <td class="bad">Unreachable</td>
+    </tr>
+    <tr>
+      <td class="svc">logging-service</td>
+      <td>Oracle</td>
+      <td>localhost:1521</td>
+      <td>XE</td>
+      <td>system</td>
+      <td class="pw-cell" data-pw="myeshopping123">********</td>
+      <td class="bad">Unreachable</td>
+    </tr>
+    <tr>
+      <td class="svc">notification-service</td>
+      <td>MySQL</td>
+      <td>localhost:3306</td>
+      <td>notification_db</td>
+      <td>myeshopping</td>
+      <td class="pw-cell" data-pw="myeshopping">********</td>
+      <td class="bad">Unreachable</td>
+    </tr>
+    <tr>
+      <td class="svc">order-group-service</td>
+      <td>None</td>
+      <td>N/A</td>
+      <td>-</td>
+      <td>-</td>
+      <td class="pw-cell" data-pw="-">********</td>
+      <td class="">N/A</td>
+    </tr>
+    <tr>
+      <td class="svc">order-service</td>
+      <td>PostgreSQL</td>
+      <td>localhost:5432</td>
+      <td>order_db</td>
+      <td>myeshopping</td>
+      <td class="pw-cell" data-pw="myeshopping">********</td>
+      <td class="bad">Unreachable</td>
+    </tr>
+    <tr>
+      <td class="svc">payment-service</td>
+      <td>PostgreSQL</td>
+      <td>localhost:5432</td>
+      <td>payment_db</td>
+      <td>myeshopping</td>
+      <td class="pw-cell" data-pw="myeshopping">********</td>
+      <td class="bad">Unreachable</td>
+    </tr>
+    <tr>
+      <td class="svc">picking-service</td>
+      <td>PostgreSQL</td>
+      <td>localhost:5432</td>
+      <td>picking_db</td>
+      <td>myeshopping</td>
+      <td class="pw-cell" data-pw="myeshopping">********</td>
+      <td class="bad">Unreachable</td>
+    </tr>
+    <tr>
+      <td class="svc">return-refund-service</td>
+      <td>MySQL</td>
+      <td>localhost:3306</td>
+      <td>return_refund_db</td>
+      <td>myeshopping</td>
+      <td class="pw-cell" data-pw="myeshopping">********</td>
+      <td class="bad">Unreachable</td>
+    </tr>
+    <tr>
+      <td class="svc">scheduler-service</td>
+      <td>None</td>
+      <td>N/A</td>
+      <td>-</td>
+      <td>-</td>
+      <td class="pw-cell" data-pw="-">********</td>
+      <td class="">N/A</td>
+    </tr>
+    <tr>
+      <td class="svc">shipment-service</td>
+      <td>MySQL</td>
+      <td>localhost:3306</td>
+      <td>shipment_db</td>
+      <td>myeshopping</td>
+      <td class="pw-cell" data-pw="myeshopping">********</td>
+      <td class="bad">Unreachable</td>
+    </tr>
+    </tbody>
+  </table>
+
+<script>
+  function showTab(name) {
+    document.getElementById('instances-table').classList.toggle('visible', name === 'instances');
+    document.getElementById('databases-table').classList.toggle('visible', name === 'databases');
+    document.getElementById('tab-instances').classList.toggle('active', name === 'instances');
+    document.getElementById('tab-databases').classList.toggle('active', name === 'databases');
+    localStorage.setItem('dashboardTab', name);
+  }
+
+  var sortState = {};
+  function sortTable(tableId, colIndex, type) {
+    var table = document.getElementById(tableId);
+    var tbody = table.querySelector('tbody');
+    var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+    var key = tableId + '-' + colIndex;
+    var asc = !(sortState[key] === 'asc');
+    sortState[key] = asc ? 'asc' : 'desc';
+
+    rows.sort(function (a, b) {
+      var av = a.children[colIndex].innerText.trim();
+      var bv = b.children[colIndex].innerText.trim();
+      if (type === 'num') {
+        av = parseFloat(av) || 0;
+        bv = parseFloat(bv) || 0;
+        return asc ? av - bv : bv - av;
+      }
+      return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+    });
+
+    rows.forEach(function (r) { tbody.appendChild(r); });
+
+    table.querySelectorAll('th .arrow').forEach(function (el) { el.textContent = ''; });
+    table.querySelectorAll('th')[colIndex].querySelector('.arrow').textContent = asc ? ' (asc)' : ' (desc)';
+  }
+
+  var passwordsVisible = false;
+  function togglePasswords() {
+    passwordsVisible = !passwordsVisible;
+    document.querySelectorAll('.pw-cell').forEach(function (el) {
+      el.textContent = passwordsVisible ? el.getAttribute('data-pw') : '********';
+    });
+    document.getElementById('pwToggleBtn').textContent = passwordsVisible ? 'Hide Passwords' : 'Show Passwords';
+  }
+
+  var REFRESH_SECONDS = 5;
+  var autoRefreshTimer = null;
+  var countdownTimer = null;
+  var secondsLeft = REFRESH_SECONDS;
+
+  function updateCountdownDisplay() {
+    document.getElementById('countdown').textContent = '(' + secondsLeft + 's)';
+  }
+
+  function toggleAutoRefresh() {
+    var on = document.getElementById('autoRefreshToggle').checked;
+    localStorage.setItem('autoRefresh', on ? '1' : '0');
+    if (on) {
+      secondsLeft = REFRESH_SECONDS;
+      updateCountdownDisplay();
+      autoRefreshTimer = setInterval(function () { location.reload(); }, REFRESH_SECONDS * 1000);
+      countdownTimer = setInterval(function () {
+        secondsLeft = secondsLeft > 0 ? secondsLeft - 1 : 0;
+        updateCountdownDisplay();
+      }, 1000);
+    } else {
+      if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
+      if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+      document.getElementById('countdown').textContent = '';
+    }
+  }
+
+  (function init() {
+    var savedTab = localStorage.getItem('dashboardTab') || 'instances';
+    showTab(savedTab);
+    if (localStorage.getItem('autoRefresh') === '1') {
+      document.getElementById('autoRefreshToggle').checked = true;
+      toggleAutoRefresh();
+    }
+  })();
+</script>
+</body>
+</html>

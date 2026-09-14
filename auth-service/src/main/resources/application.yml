@@ -3,21 +3,17 @@ server:
 
 spring:
   datasource:
-    url: jdbc:h2:mem:authdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: 
+    url: jdbc:oracle:thin:@localhost:1521:XE
+    driver-class-name: oracle.jdbc.OracleDriver
+    username: system
+    password: myeshopping123
   jpa:
     hibernate:
       ddl-auto: update
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
+        dialect: org.hibernate.dialect.OracleDialect
         format_sql: true
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
 
 jwt:
   secret: myeshopping-super-secret-key-for-local-dev-1234567890

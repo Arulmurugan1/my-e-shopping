@@ -1,0 +1,4 @@
+-- notification-service (database: notification_db)
+-- notification-service currently has no @Entity/JPA repository - it declares a MySQL
+-- datasource but doesn't use it for persistence yet. No tables to create.
+-- If/when notification-service gains real persistence, add its DDL here.

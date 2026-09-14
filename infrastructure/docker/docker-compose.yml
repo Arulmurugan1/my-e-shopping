@@ -44,17 +44,67 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     networks: [eshop-platform]
+  mongodb:
+    image: mongo:7
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: myeshopping
+      MONGO_INITDB_ROOT_PASSWORD: myeshopping
+    ports: ["27017:27017"]
+    volumes:
+      - mongodb-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [eshop-platform]
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: myeshopping
+      MYSQL_USER: myeshopping
+      MYSQL_PASSWORD: myeshopping
+      MYSQL_DATABASE: myeshopping
+    ports: ["3306:3306"]
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ../mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [eshop-platform]
+  oracle:
+    image: gvenzl/oracle-xe:21-slim-faststart
+    environment:
+      ORACLE_PASSWORD: myeshopping123
+      ORACLE_ALLOW_REMOTE: true
+    ports: ["1521:1521"]
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+    healthcheck:
+      test: ["CMD", "sqlplus", "-L", "system/myeshopping123@//localhost:1521/XE", "as", "sysdba", "SELECT 1 FROM dual"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks: [eshop-platform]
   prometheus:
     image: prom/prometheus:v2.54.1
     ports: ["9090:9090"]
     volumes:
       - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks: [eshop-platform]
   grafana:
     image: grafana/grafana:11.2.0
     ports: ["3000:3000"]
     depends_on: [prometheus]
+    networks: [eshop-platform]
 volumes:
   postgres-data:
   redis-data:
+  mongodb-data:
+  mysql-data:
+  oracle-data:
 networks:
   eshop-platform:

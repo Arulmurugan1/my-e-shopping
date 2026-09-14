@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Microservices Live Dashboard</title>
+<style>
+  body { font-family: Segoe UI, Arial, sans-serif; background: #1e1e2e; color: #e4e4e4; margin: 0; padding: 32px; }
+  h1 { margin: 0 0 4px; display: inline-block; }
+  .live-badge { display: inline-flex; align-items: center; gap: 6px; margin-left: 14px; font-size: 12px; font-weight: 700; color: #34d058; vertical-align: middle; }
+  .live-dot { width: 9px; height: 9px; border-radius: 50%; background: #34d058; animation: pulse 1s infinite; }
+  @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+  .live-badge.stalled { color: #ff5c5c; }
+  .live-badge.stalled .live-dot { background: #ff5c5c; animation: none; }
+  .meta { color: #9a9ab0; margin-bottom: 20px; font-size: 13px; }
+  .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .tabs { display: flex; gap: 8px; }
+  .tab-btn { background: #27273a; color: #e4e4e4; border: 1px solid #3a3a52; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; }
+  .tab-btn.active { background: #7aa2ff; color: #14141f; border-color: #7aa2ff; }
+  .pw-btn { background: #7aa2ff; color: #14141f; border: none; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 700; }
+  table { border-collapse: collapse; width: 100%; background: #27273a; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: none; }
+  table.visible { display: table; }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #3a3a52; font-size: 14px; }
+  th { background: #32324a; color: #ffffff; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; cursor: pointer; user-select: none; white-space: nowrap; }
+  th:hover { background: #3d3d58; }
+  th .arrow { font-size: 10px; opacity: 0.7; margin-left: 4px; }
+  tr:hover { background: #32324a; }
+  td.svc { font-weight: 600; }
+  a { color: #7aa2ff; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .ok { color: #34d058; font-weight: 700; }
+  .bad { color: #ff5c5c; font-weight: 700; }
+  td.copyable { cursor: copy; }
+  td.copyable:hover { background: #3a3a5a; outline: 1px dashed #7aa2ff; outline-offset: -2px; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: #34d058; color: #0b1f0f; font-weight: 700; font-size: 13px; padding: 10px 20px; border-radius: 6px; opacity: 0; pointer-events: none; transition: opacity 0.15s, transform 0.15s; box-shadow: 0 4px 12px rgba(0,0,0,0.4); z-index: 10; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 22px; }
+  .stat-card { background: #27273a; border: 1px solid #3a3a52; border-radius: 8px; padding: 12px 16px; }
+  .stat-card .label { color: #9a9ab0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .stat-card .value { font-size: 20px; font-weight: 700; color: #e4e4e4; }
+  .stat-card .sub { color: #7a7a94; font-size: 12px; margin-top: 2px; }
+  .bar-track { background: #14141f; border-radius: 4px; height: 6px; margin-top: 8px; overflow: hidden; }
+  .bar-fill { height: 100%; background: #7aa2ff; border-radius: 4px; }
+  .bar-fill.warn { background: #f2c94c; }
+  .bar-fill.crit { background: #ff5c5c; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .action-btn { border: none; border-radius: 4px; padding: 4px 10px; font-size: 11px; font-weight: 700; cursor: pointer; margin-right: 4px; color: #14141f; }
+  .action-btn:last-child { margin-right: 0; }
+  .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .action-btn.start { background: #34d058; }
+  .action-btn.stop { background: #ff5c5c; }
+  .action-btn.restart { background: #f2c94c; }
+</style>
+</head>
+<body>
+  <h1>Microservices Dashboard</h1>
+  <span class="live-badge" id="liveBadge"><span class="live-dot"></span><span id="liveText">LIVE</span></span>
+  <div class="meta" id="meta">Connecting...</div>
+
+  <div class="stats-grid" id="statsGrid"></div>
+
+  <div class="toolbar">
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-instances" onclick="showTab('instances')">Instances</button>
+      <button class="tab-btn" id="tab-databases" onclick="showTab('databases')">Databases</button>
+      <button class="tab-btn" id="tab-docker" onclick="showTab('docker')">Docker</button>
+    </div>
+    <button class="pw-btn" id="pwToggleBtn" onclick="togglePasswords()">Show Passwords</button>
+    <button class="pw-btn" id="servicesUpBtn" style="display:none; background:#34d058;" onclick="performServicesAllAction('start', this)">Start All Services</button>
+    <button class="pw-btn" id="servicesDownBtn" style="display:none; background:#ff5c5c; color:#fff;" onclick="performServicesAllAction('stop', this)">Stop All Services</button>
+    <button class="pw-btn" id="dockerUpBtn" style="display:none; background:#34d058;" onclick="performDockerComposeAction('up', this)">Start All Containers</button>
+    <button class="pw-btn" id="dockerDownBtn" style="display:none; background:#ff5c5c; color:#fff;" onclick="performDockerComposeAction('down', this)">Stop All Containers</button>
+  </div>
+
+  <table id="instances-table" class="visible">
+    <thead>
+      <tr>
+        <th onclick="setSort('instances',0,'text')">Service<span class="arrow"></span></th>
+        <th onclick="setSort('instances',1,'text')">URL<span class="arrow"></span></th>
+        <th onclick="setSort('instances',2,'text')">Status<span class="arrow"></span></th>
+        <th onclick="setSort('instances',3,'text')">Live<span class="arrow"></span></th>
+        <th>Actions</th>
+        <th onclick="setSort('instances',5,'text')">Started<span class="arrow"></span></th>
+        <th onclick="setSort('instances',6,'num')">Storage (Memory)<span class="arrow"></span></th>
+        <th onclick="setSort('instances',7,'num')">CPU %<span class="arrow"></span></th>
+        <th onclick="setSort('instances',8,'num')">RAM %<span class="arrow"></span></th>
+        <th onclick="setSort('instances',9,'num')">PID<span class="arrow"></span></th>
+      </tr>
+    </thead>
+    <tbody id="instances-body"></tbody>
+  </table>
+
+  <table id="databases-table">
+    <thead>
+      <tr>
+        <th onclick="setSort('databases',0,'text')">Service<span class="arrow"></span></th>
+        <th onclick="setSort('databases',1,'text')">DB Type<span class="arrow"></span></th>
+        <th onclick="setSort('databases',2,'text')">Host:Port<span class="arrow"></span></th>
+        <th onclick="setSort('databases',3,'text')">Database Name<span class="arrow"></span></th>
+        <th onclick="setSort('databases',4,'text')">Username<span class="arrow"></span></th>
+        <th>Password</th>
+        <th onclick="setSort('databases',6,'text')">DB Status<span class="arrow"></span></th>
+        <th onclick="setSort('databases',7,'num')">CPU %<span class="arrow"></span></th>
+        <th onclick="setSort('databases',8,'num')">Memory<span class="arrow"></span></th>
+        <th onclick="setSort('databases',9,'num')">RAM %<span class="arrow"></span></th>
+      </tr>
+    </thead>
+    <tbody id="databases-body"></tbody>
+  </table>
+
+  <table id="docker-table">
+    <thead>
+      <tr>
+        <th>Service</th>
+        <th>Container</th>
+        <th>Status</th>
+        <th>Live</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="docker-body"></tbody>
+  </table>
+
+  <div class="toast" id="toast">Copied!</div>
+
+<script>
+  var currentTab = 'instances';
+  var sortState = { instances: null, databases: null };
+  var passwordsVisible = false;
+  var latest = { instances: [], databases: [], docker: [] };
+  var missedTicks = 0;
+
+  function showTab(name) {
+    currentTab = name;
+    document.getElementById('instances-table').classList.toggle('visible', name === 'instances');
+    document.getElementById('databases-table').classList.toggle('visible', name === 'databases');
+    document.getElementById('docker-table').classList.toggle('visible', name === 'docker');
+    document.getElementById('tab-instances').classList.toggle('active', name === 'instances');
+    document.getElementById('tab-databases').classList.toggle('active', name === 'databases');
+    document.getElementById('tab-docker').classList.toggle('active', name === 'docker');
+    document.getElementById('pwToggleBtn').style.display = name === 'databases' ? '' : 'none';
+    document.getElementById('servicesUpBtn').style.display = name === 'instances' ? '' : 'none';
+    document.getElementById('servicesDownBtn').style.display = name === 'instances' ? '' : 'none';
+    document.getElementById('dockerUpBtn').style.display = name === 'docker' ? '' : 'none';
+    document.getElementById('dockerDownBtn').style.display = name === 'docker' ? '' : 'none';
+  }
+
+  function togglePasswords() {
+    passwordsVisible = !passwordsVisible;
+    document.getElementById('pwToggleBtn').textContent = passwordsVisible ? 'Hide Passwords' : 'Show Passwords';
+    renderDatabases();
+  }
+
+  function setSort(table, colIndex, type) {
+    var cur = sortState[table];
+    var asc = !(cur && cur.col === colIndex && cur.dir === 'asc');
+    sortState[table] = { col: colIndex, dir: asc ? 'asc' : 'desc', type: type };
+    if (table === 'instances') renderInstances(); else renderDatabases();
+  }
+
+  function applySort(rows, table, columns) {
+    var s = sortState[table];
+    if (!s) return rows;
+    var sorted = rows.slice().sort(function (a, b) {
+      var av = columns[s.col](a);
+      var bv = columns[s.col](b);
+      if (s.type === 'num') {
+        av = parseFloat(av) || 0; bv = parseFloat(bv) || 0;
+        return s.dir === 'asc' ? av - bv : bv - av;
+      }
+      av = String(av); bv = String(bv);
+      return s.dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+    });
+    return sorted;
+  }
+
+  var MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var WEEKDAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  function formatTime(d) {
+    var h = d.getHours();
+    var m = d.getMinutes();
+    var ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12; if (h === 0) h = 12;
+    var mStr = m < 10 ? '0' + m : String(m);
+    return h + ':' + mStr + ' ' + ampm;
+  }
+
+  function isSameDay(a, b) {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  }
+
+  function formatSmartDate(dateStr) {
+    if (!dateStr || dateStr === 'N/A') return dateStr;
+    var d = new Date(String(dateStr).replace(' ', 'T'));
+    if (isNaN(d.getTime())) return dateStr;
+    var now = new Date();
+    var timeStr = formatTime(d);
+    if (isSameDay(d, now)) return 'Today ' + timeStr;
+    var yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+    if (isSameDay(d, yesterday)) return 'Yesterday ' + timeStr;
+    var dayStr = d.getDate() < 10 ? '0' + d.getDate() : String(d.getDate());
+    return d.getFullYear() + ',' + dayStr + ' ' + MONTH_NAMES[d.getMonth()] + ',' + WEEKDAY_NAMES[d.getDay()] + ' ' + timeStr;
+  }
+
+  function updateArrows(tableId, table) {
+    var t = document.getElementById(tableId);
+    t.querySelectorAll('th .arrow').forEach(function (el) { el.textContent = ''; });
+    var s = sortState[table];
+    if (s) {
+      var th = t.querySelectorAll('th')[s.col];
+      var arrow = th.querySelector('.arrow');
+      if (arrow) arrow.textContent = s.dir === 'asc' ? ' (asc)' : ' (desc)';
+    }
+  }
+
+  function renderInstances() {
+    var cols = [
+      function (r) { return r.name; },
+      function (r) { return r.url; },
+      function (r) { return r.status; },
+      function (r) { return r.running ? 'Running' : 'Not Running'; },
+      function (r) { return ''; },
+      function (r) { return r.started; },
+      function (r) { return r.memory; },
+      function (r) { return r.cpuPct; },
+      function (r) { return r.ramPct; },
+      function (r) { return r.pid_; }
+    ];
+    var rows = applySort(latest.instances, 'instances', cols);
+    var body = document.getElementById('instances-body');
+    body.innerHTML = rows.map(function (r) {
+      var statusClass = r.status === 'Healthy' ? 'ok' : 'bad';
+      var liveClass = r.running ? 'ok' : 'bad';
+      var cpuText = r.cpuPct === 'N/A' ? 'N/A' : r.cpuPct + '%';
+      var ramText = r.ramPct === 'N/A' ? 'N/A' : r.ramPct + '%';
+      return '<tr>' +
+        '<td class="svc copyable" data-copy="' + escapeHtml(r.name) + '">' + escapeHtml(r.name) + '</td>' +
+        '<td class="copyable" data-copy="' + escapeHtml(r.url) + '"><a href="' + escapeHtml(r.url) + '" target="_blank">' + escapeHtml(r.url) + '</a></td>' +
+        '<td class="' + statusClass + ' copyable" data-copy="' + escapeHtml(r.status) + '">' + escapeHtml(r.status) + '</td>' +
+        '<td class="' + liveClass + ' copyable" data-copy="' + (r.running ? 'Running' : 'Not Running') + '">' + (r.running ? 'Running' : 'Not Running') + '</td>' +
+        '<td>' +
+          '<button class="action-btn start" data-service="' + escapeHtml(r.name) + '" data-action="start"' + (r.running ? ' disabled' : '') + '>Start</button>' +
+          '<button class="action-btn stop" data-service="' + escapeHtml(r.name) + '" data-action="stop"' + (r.running ? '' : ' disabled') + '>Stop</button>' +
+          '<button class="action-btn restart" data-service="' + escapeHtml(r.name) + '" data-action="restart"' + (r.running ? '' : ' disabled') + '>Restart</button>' +
+        '</td>' +
+        '<td class="copyable" data-copy="' + escapeHtml(r.started) + '">' + escapeHtml(formatSmartDate(r.started)) + '</td>' +
+        '<td class="copyable" data-copy="' + escapeHtml(r.memory) + '">' + escapeHtml(r.memory) + '</td>' +
+        '<td class="copyable" data-copy="' + escapeHtml(cpuText) + '">' + escapeHtml(cpuText) + '</td>' +
+        '<td class="copyable" data-copy="' + escapeHtml(ramText) + '">' + escapeHtml(ramText) + '</td>' +
+        '<td class="copyable" data-copy="' + escapeHtml(String(r.pid_)) + '">' + escapeHtml(String(r.pid_)) + '</td>' +
+        '</tr>';
+    }).join('');
+    updateArrows('instances-table', 'instances');
+  }
+
+  function renderDatabases() {
+    var cols = [
+      function (r) { return r.name; },
+      function (r) { return r.dbType; },
+      function (r) { return r.dbTarget; },
+      function (r) { return r.dbName; },
+      function (r) { return r.dbUser; },
+      function (r) { return r.dbPass; },
+      function (r) { return r.dbStatus; },
+      function (r) { return r.dbCpuPct; },
+      function (r) { return r.dbMem; },
+      function (r) { return r.dbRamPct; }
+    ];
+    var rows = applySort(latest.databases, 'databases', cols);
+    var body = document.getElementById('databases-body');
+    body.innerHTML = rows.map(function (r) {
+      var dbClass = (r.dbStatus === 'Reachable' || r.dbStatus === 'In-Memory (Up)') ? 'ok' : (r.dbStatus === 'N/A' ? '' : 'bad');
+      var pwText = passwordsVisible ? r.dbPass : '********';
+      var dbCpuText = r.dbCpuPct === 'N/A' ? 'N/A' : r.dbCpuPct + '%';
+      var dbRamText = r.dbRamPct === 'N/A' ? 'N/A' : r.dbRamPct + '%';
+      return '<tr>' +
+        '<td class="svc copyable" data-copy="' + escapeHtml(r.name) + '">' + escapeHtml(r.name) + '</td>' +
+        '<td class="copyable" data-copy="' + escapeHtml(r.dbType) + '">' + escapeHtml(r.dbType) + '</td>' +
+        '<td class="copyable" data-copy="' + escapeHtml(r.dbTarget) + '">' + escapeHtml(r.dbTarget) + '</td>' +
+        '<td class="copyable" data-copy="' + escapeHtml(r.dbName) + '">' + escapeHtml(r.dbName) + '</td>' +
+        '<td class="copyable" data-copy="' + escapeHtml(r.dbUser) + '">' + escapeHtml(r.dbUser) + '</td>' +
+        '<td class="copyable" data-copy="' + escapeHtml(r.dbPass) + '" title="Click to copy password">' + escapeHtml(pwText) + '</td>' +
+        '<td class="' + dbClass + ' copyable" data-copy="' + escapeHtml(r.dbStatus) + '">' + escapeHtml(r.dbStatus) + '</td>' +
+        '<td class="copyable" data-copy="' + escapeHtml(dbCpuText) + '">' + escapeHtml(dbCpuText) + '</td>' +
+        '<td class="copyable" data-copy="' + escapeHtml(r.dbMem) + '">' + escapeHtml(r.dbMem) + '</td>' +
+        '<td class="copyable" data-copy="' + escapeHtml(dbRamText) + '">' + escapeHtml(dbRamText) + '</td>' +
+        '</tr>';
+    }).join('');
+    updateArrows('databases-table', 'databases');
+  }
+
+  function renderDocker() {
+    var body = document.getElementById('docker-body');
+    body.innerHTML = latest.docker.map(function (r) {
+      var statusClass = r.running ? 'ok' : 'bad';
+      return '<tr>' +
+        '<td class="svc copyable" data-copy="' + escapeHtml(r.name) + '">' + escapeHtml(r.name) + '</td>' +
+        '<td class="copyable" data-copy="' + escapeHtml(r.container) + '">' + escapeHtml(r.container) + '</td>' +
+        '<td class="' + statusClass + ' copyable" data-copy="' + escapeHtml(r.status) + '">' + escapeHtml(r.status) + '</td>' +
+        '<td class="' + statusClass + ' copyable" data-copy="' + (r.running ? 'Running' : 'Not Running') + '">' + (r.running ? 'Running' : 'Not Running') + '</td>' +
+        '<td>' +
+          '<button class="action-btn start" data-docker-service="' + escapeHtml(r.name) + '" data-action="start"' + (r.running ? ' disabled' : '') + '>Start</button>' +
+          '<button class="action-btn stop" data-docker-service="' + escapeHtml(r.name) + '" data-action="stop"' + (r.running ? '' : ' disabled') + '>Stop</button>' +
+          '<button class="action-btn restart" data-docker-service="' + escapeHtml(r.name) + '" data-action="restart"' + (r.running ? '' : ' disabled') + '>Restart</button>' +
+        '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  async function pollDocker() {
+    try {
+      var res = await fetch('/api/docker-status', { cache: 'no-store' });
+      if (!res.ok) throw new Error('bad status');
+      var data = await res.json();
+      latest.docker = data.containers || [];
+      if (data.dockerAvailable === false) {
+        document.getElementById('docker-body').innerHTML = '<tr><td colspan="5" class="bad">Docker CLI not reachable - is Docker Desktop running?</td></tr>';
+      } else {
+        renderDocker();
+      }
+    } catch (e) { /* leave last known state on screen */ }
+  }
+
+  function performDockerAction(name, action, btn) {
+    if (btn) { btn.disabled = true; }
+    fetch('/api/docker-action?service=' + encodeURIComponent(name) + '&action=' + encodeURIComponent(action), { method: 'POST' })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        showToast(data.message || (data.ok ? 'Done' : 'Failed'));
+        setTimeout(pollDocker, 1500);
+      })
+      .catch(function () { showToast('Request failed'); })
+      .then(function () { setTimeout(pollDocker, 4000); });
+  }
+
+  function performServicesAllAction(action, btn) {
+    if (btn) { btn.disabled = true; }
+    fetch('/api/action-all?action=' + encodeURIComponent(action), { method: 'POST' })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        showToast(data.message || (data.ok ? 'Done' : 'Failed'));
+        setTimeout(poll, 1500);
+      })
+      .catch(function () { showToast('Request failed'); })
+      .then(function () { if (btn) { setTimeout(function () { btn.disabled = false; }, 1500); } setTimeout(poll, 5000); });
+  }
+
+  function performDockerComposeAction(action, btn) {
+    if (btn) { btn.disabled = true; }
+    fetch('/api/docker-compose-action?action=' + encodeURIComponent(action), { method: 'POST' })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        showToast(data.message || (data.ok ? 'Done' : 'Failed'));
+        setTimeout(pollDocker, 2000);
+      })
+      .catch(function () { showToast('Request failed'); })
+      .then(function () { if (btn) { setTimeout(function () { btn.disabled = false; }, 1500); } setTimeout(pollDocker, 6000); });
+  }
+
+  function barClass(pct) {
+    if (pct >= 85) return 'crit';
+    if (pct >= 60) return 'warn';
+    return '';
+  }
+
+  function statCard(label, value, sub, pct) {
+    var barHtml = (pct != null) ? '<div class="bar-track"><div class="bar-fill ' + barClass(pct) + '" style="width:' + Math.min(100, Math.max(0, pct)) + '%"></div></div>' : '';
+    return '<div class="stat-card"><div class="label">' + escapeHtml(label) + '</div><div class="value">' + escapeHtml(value) + '</div>' +
+      (sub ? '<div class="sub">' + escapeHtml(sub) + '</div>' : '') + barHtml + '</div>';
+  }
+
+  function renderStats(data) {
+    var grid = document.getElementById('statsGrid');
+    var cards = [
+      statCard('Total CPU Usage', (data.totalCpuPercent != null ? data.totalCpuPercent : 0) + '%', data.cpuCores + ' CPU cores', data.totalCpuPercent),
+      statCard('Free / Available RAM', data.freeRamGb + ' GB', 'of ' + data.totalRamGb + ' GB total', data.ramUsedPct),
+      statCard('Used RAM', data.usedRamGb + ' GB (' + data.ramUsedPct + '%)', 'of ' + data.totalRamGb + ' GB total', data.ramUsedPct),
+      statCard('Free / Available Storage', data.freeStorageGb + ' GB', 'of ' + data.totalStorageGb + ' GB total', data.storageUsedPct),
+      statCard('Used Storage', data.usedStorageGb + ' GB (' + data.storageUsedPct + '%)', 'of ' + data.totalStorageGb + ' GB total', data.storageUsedPct)
+    ];
+    grid.innerHTML = cards.join('');
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function setLiveState(ok) {
+    var badge = document.getElementById('liveBadge');
+    var text = document.getElementById('liveText');
+    if (ok) {
+      badge.classList.remove('stalled');
+      text.textContent = 'LIVE';
+    } else {
+      badge.classList.add('stalled');
+      text.textContent = 'DISCONNECTED';
+    }
+  }
+
+  async function poll() {
+    try {
+      var res = await fetch('/api/status', { cache: 'no-store' });
+      if (!res.ok) throw new Error('bad status');
+      var data = await res.json();
+      latest.instances = data.instances || [];
+      latest.databases = data.databases || [];
+      document.getElementById('meta').textContent = 'Last updated: ' + formatSmartDate(data.generatedAt) + ' (refreshes every 1s)';
+      renderStats(data);
+      renderInstances();
+      renderDatabases();
+      missedTicks = 0;
+      setLiveState(true);
+    } catch (e) {
+      missedTicks++;
+      if (missedTicks >= 2) {
+        setLiveState(false);
+        document.getElementById('meta').textContent = 'Cannot reach live-server.ps1 - is it still running?';
+      }
+    }
+  }
+
+  var toastTimer = null;
+  function showToast(text) {
+    var toast = document.getElementById('toast');
+    toast.textContent = text;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.classList.remove('show'); }, 1200);
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () {
+        showToast('Copied: ' + text);
+      }).catch(function () { fallbackCopy(text); });
+    } else {
+      fallbackCopy(text);
+    }
+  }
+
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); showToast('Copied: ' + text); } catch (e) { }
+    document.body.removeChild(ta);
+  }
+
+  function performAction(name, action, btn) {
+    if (btn) { btn.disabled = true; }
+    fetch('/api/action?service=' + encodeURIComponent(name) + '&action=' + encodeURIComponent(action), { method: 'POST' })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        showToast(data.message || (data.ok ? 'Done' : 'Failed'));
+        setTimeout(poll, 1000);
+      })
+      .catch(function () { showToast('Request failed'); })
+      .then(function () { setTimeout(poll, 3000); });
+  }
+
+  document.addEventListener('click', function (e) {
+    var actionBtn = e.target.closest('button.action-btn');
+    if (actionBtn) {
+      e.stopPropagation();
+      if (actionBtn.disabled) return;
+      var dockerSvc = actionBtn.getAttribute('data-docker-service');
+      if (dockerSvc) {
+        performDockerAction(dockerSvc, actionBtn.getAttribute('data-action'), actionBtn);
+      } else {
+        performAction(actionBtn.getAttribute('data-service'), actionBtn.getAttribute('data-action'), actionBtn);
+      }
+      return;
+    }
+    var link = e.target.closest('a');
+    if (link) { e.stopPropagation(); return; }
+    var cell = e.target.closest('td.copyable');
+    if (cell) { copyText(cell.getAttribute('data-copy')); }
+  });
+
+  showTab('instances');
+  poll();
+  pollDocker();
+  setInterval(poll, 1000);
+  setInterval(pollDocker, 3000);
+</script>
+</body>
+</html>
