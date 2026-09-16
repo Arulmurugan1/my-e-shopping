@@ -62,6 +62,7 @@
       <button class="tab-btn active" id="tab-instances" onclick="showTab('instances')">Instances</button>
       <button class="tab-btn" id="tab-databases" onclick="showTab('databases')">Databases</button>
       <button class="tab-btn" id="tab-docker" onclick="showTab('docker')">Docker</button>
+      <button class="tab-btn" id="tab-tables" onclick="showTab('tables')">Tables</button>
     </div>
     <button class="pw-btn" id="pwToggleBtn" onclick="togglePasswords()">Show Passwords</button>
     <button class="pw-btn" id="servicesUpBtn" style="display:none; background:#34d058;" onclick="performServicesAllAction('start', this)">Start All Services</button>
@@ -119,28 +120,89 @@
     <tbody id="docker-body"></tbody>
   </table>
 
+  <table id="tables-table">
+    <thead>
+      <tr>
+        <th onclick="setSort('tables',0,'text')">Service<span class="arrow"></span></th>
+        <th onclick="setSort('tables',1,'text')">DB Type<span class="arrow"></span></th>
+        <th onclick="setSort('tables',2,'text')">DB Username<span class="arrow"></span></th>
+        <th onclick="setSort('tables',3,'text')">Entity Class<span class="arrow"></span></th>
+        <th onclick="setSort('tables',4,'text')">Table Name<span class="arrow"></span></th>
+        <th>Columns</th>
+      </tr>
+    </thead>
+    <tbody id="tables-body"></tbody>
+  </table>
+
   <div class="toast" id="toast">Copied!</div>
 
 <script>
   var currentTab = 'instances';
-  var sortState = { instances: null, databases: null };
+  var sortState = { instances: null, databases: null, tables: null };
   var passwordsVisible = false;
   var latest = { instances: [], databases: [], docker: [] };
   var missedTicks = 0;
 
+  var TAB_NAMES = ['instances', 'databases', 'docker', 'tables'];
+
+  var SERVICE_TABLES = [
+    { service: 'audit-service', dbType: 'Oracle', dbUser: 'system', entity: 'AuditRecord', table: 'audit_records', columns: 'id (UUID), eventType, actor, timestamp, payload' },
+    { service: 'auth-service', dbType: 'Oracle', dbUser: 'system', entity: 'UserEntity', table: 'users', columns: 'id (UUID), email, password, role, date_of_birth, gender, is_active, created_at, updated_at' },
+    { service: 'cart-service', dbType: 'PostgreSQL', dbUser: 'myeshopping', entity: 'Cart', table: 'carts', columns: 'id, customerId (unique), status, createdAt, updatedAt' },
+    { service: 'cart-service', dbType: 'PostgreSQL', dbUser: 'myeshopping', entity: 'CartItem', table: 'cart_items', columns: 'id, cart_id (FK), productId, sku, productName, unitPrice, quantity' },
+    { service: 'customer-service', dbType: 'PostgreSQL', dbUser: 'myeshopping', entity: 'CustomerAddress', table: 'customer_addresses', columns: 'id, customerId, addressType, street, city, state, postalCode, country, is_primary, created_at, updated_at' },
+    { service: 'customer-service', dbType: 'PostgreSQL', dbUser: 'myeshopping', entity: 'CustomerProfile', table: 'customer_profiles', columns: 'id, userId, firstName, lastName, phoneNumber, created_at, updated_at' },
+    { service: 'delivery-service', dbType: 'MySQL', dbUser: 'myeshopping', entity: 'Delivery', table: 'deliveries', columns: 'id, shipment_id (unique), recipientName, status, createdAt, deliveredAt' },
+    { service: 'inventory-service', dbType: 'PostgreSQL', dbUser: 'myeshopping', entity: 'Product', table: 'products', columns: 'id, sku (unique), name, description, price, stockQuantity, reservedQuantity, is_active, createdAt, updatedAt' },
+    { service: 'invoice-service', dbType: 'PostgreSQL', dbUser: 'myeshopping', entity: 'Invoice', table: 'invoices', columns: 'id, invoice_number (unique), order_id (unique), payment_id, customerId, amount, currency, issuedAt' },
+    { service: 'logging-service', dbType: 'Oracle', dbUser: 'system', entity: 'LogEntry', table: 'log_entries', columns: 'id (UUID), source, level, message, timestamp, payload' },
+    { service: 'order-service', dbType: 'PostgreSQL', dbUser: 'myeshopping', entity: 'Order', table: 'orders', columns: 'id, customerId, shippingAddress, status, totalAmount, createdAt, updatedAt' },
+    { service: 'order-service', dbType: 'PostgreSQL', dbUser: 'myeshopping', entity: 'OrderLine', table: 'order_lines', columns: 'id, order_id (FK), productId, sku, productName, unitPrice, quantity' },
+    { service: 'payment-service', dbType: 'PostgreSQL', dbUser: 'myeshopping', entity: 'Payment', table: 'payments', columns: 'id, orderId, customerId, amount, currency, idempotency_key (unique), status, createdAt, updatedAt' },
+    { service: 'picking-service', dbType: 'PostgreSQL', dbUser: 'myeshopping', entity: 'PickingTask', table: 'picking_tasks', columns: 'id, orderId, itemCount, status, createdAt, updatedAt' },
+    { service: 'return-refund-service', dbType: 'MySQL', dbUser: 'myeshopping', entity: 'ReturnRequestEntity', table: 'return_requests', columns: 'id, orderId, customerId, reason, amount, status, requestedAt, completedAt' },
+    { service: 'shipment-service', dbType: 'MySQL', dbUser: 'myeshopping', entity: 'Shipment', table: 'shipments', columns: 'id, order_id (unique), trackingNumber (unique), carrier, status, createdAt, completedAt' },
+    { service: 'cartonization-service', dbType: 'None', dbUser: '-', entity: '-', table: 'no DB tables', columns: '-' },
+    { service: 'notification-service', dbType: 'MySQL', dbUser: 'myeshopping', entity: '-', table: 'no DB tables', columns: '-' },
+    { service: 'order-group-service', dbType: 'None', dbUser: '-', entity: '-', table: 'no DB tables', columns: '-' },
+    { service: 'scheduler-service', dbType: 'None', dbUser: '-', entity: '-', table: 'no DB tables', columns: '-' }
+  ];
+
   function showTab(name) {
     currentTab = name;
-    document.getElementById('instances-table').classList.toggle('visible', name === 'instances');
-    document.getElementById('databases-table').classList.toggle('visible', name === 'databases');
-    document.getElementById('docker-table').classList.toggle('visible', name === 'docker');
-    document.getElementById('tab-instances').classList.toggle('active', name === 'instances');
-    document.getElementById('tab-databases').classList.toggle('active', name === 'databases');
-    document.getElementById('tab-docker').classList.toggle('active', name === 'docker');
+    TAB_NAMES.forEach(function (t) {
+      document.getElementById(t + '-table').classList.toggle('visible', name === t);
+      document.getElementById('tab-' + t).classList.toggle('active', name === t);
+    });
     document.getElementById('pwToggleBtn').style.display = name === 'databases' ? '' : 'none';
     document.getElementById('servicesUpBtn').style.display = name === 'instances' ? '' : 'none';
     document.getElementById('servicesDownBtn').style.display = name === 'instances' ? '' : 'none';
     document.getElementById('dockerUpBtn').style.display = name === 'docker' ? '' : 'none';
     document.getElementById('dockerDownBtn').style.display = name === 'docker' ? '' : 'none';
+    if (name === 'tables') renderTables();
+  }
+
+  function renderTables() {
+    var cols = [
+      function (r) { return r.service; },
+      function (r) { return r.dbType; },
+      function (r) { return r.dbUser; },
+      function (r) { return r.entity; },
+      function (r) { return r.table; }
+    ];
+    var rows = applySort(SERVICE_TABLES, 'tables', cols);
+    var body = document.getElementById('tables-body');
+    body.innerHTML = rows.map(function (r) {
+      return '<tr>' +
+        '<td class="svc copyable" data-copy="' + escapeHtml(r.service) + '">' + escapeHtml(r.service) + '</td>' +
+        '<td class="copyable" data-copy="' + escapeHtml(r.dbType) + '">' + escapeHtml(r.dbType) + '</td>' +
+        '<td class="copyable" data-copy="' + escapeHtml(r.dbUser) + '">' + escapeHtml(r.dbUser) + '</td>' +
+        '<td class="copyable" data-copy="' + escapeHtml(r.entity) + '">' + escapeHtml(r.entity) + '</td>' +
+        '<td class="copyable" data-copy="' + escapeHtml(r.table) + '">' + escapeHtml(r.table) + '</td>' +
+        '<td class="copyable" data-copy="' + escapeHtml(r.columns) + '">' + escapeHtml(r.columns) + '</td>' +
+        '</tr>';
+    }).join('');
+    updateArrows('tables-table', 'tables');
   }
 
   function togglePasswords() {
@@ -153,7 +215,9 @@
     var cur = sortState[table];
     var asc = !(cur && cur.col === colIndex && cur.dir === 'asc');
     sortState[table] = { col: colIndex, dir: asc ? 'asc' : 'desc', type: type };
-    if (table === 'instances') renderInstances(); else renderDatabases();
+    if (table === 'instances') renderInstances();
+    else if (table === 'databases') renderDatabases();
+    else renderTables();
   }
 
   function applySort(rows, table, columns) {
