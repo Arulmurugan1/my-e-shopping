@@ -31,6 +31,8 @@
   .bad { color: #ff5c5c; font-weight: 700; }
   td.copyable { cursor: copy; }
   td.copyable:hover { background: #3a3a5a; outline: 1px dashed #7aa2ff; outline-offset: -2px; }
+  span.copyable { cursor: copy; padding: 1px 3px; border-radius: 3px; }
+  span.copyable:hover { background: #3a3a5a; outline: 1px dashed #7aa2ff; }
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: #34d058; color: #0b1f0f; font-weight: 700; font-size: 13px; padding: 10px 20px; border-radius: 6px; opacity: 0; pointer-events: none; transition: opacity 0.15s, transform 0.15s; box-shadow: 0 4px 12px rgba(0,0,0,0.4); z-index: 10; }
   .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 22px; }
   .stat-card { background: #27273a; border: 1px solid #3a3a52; border-radius: 8px; padding: 12px 16px; }
@@ -48,6 +50,10 @@
   .action-btn.start { background: #34d058; }
   .action-btn.stop { background: #ff5c5c; }
   .action-btn.restart { background: #f2c94c; }
+  .progress-wrap { display: none; align-items: center; gap: 8px; font-size: 12px; color: #9a9ab0; }
+  .progress-wrap.show { display: inline-flex; }
+  .progress-track { width: 140px; height: 8px; background: #14141f; border-radius: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; width: 0%; background: #34d058; border-radius: 4px; transition: width 0.4s ease; }
 </style>
 </head>
 <body>
@@ -67,6 +73,7 @@
     <button class="pw-btn" id="pwToggleBtn" onclick="togglePasswords()">Show Passwords</button>
     <button class="pw-btn" id="servicesUpBtn" style="display:none; background:#34d058;" onclick="performServicesAllAction('start', this)">Start All Services</button>
     <button class="pw-btn" id="servicesDownBtn" style="display:none; background:#ff5c5c; color:#fff;" onclick="performServicesAllAction('stop', this)">Stop All Services</button>
+    <span class="progress-wrap" id="startAllProgress"><div class="progress-track"><div class="progress-fill" id="startAllProgressFill"></div></div><span id="startAllProgressText"></span></span>
     <button class="pw-btn" id="dockerUpBtn" style="display:none; background:#34d058;" onclick="performDockerComposeAction('up', this)">Start All Containers</button>
     <button class="pw-btn" id="dockerDownBtn" style="display:none; background:#ff5c5c; color:#fff;" onclick="performDockerComposeAction('down', this)">Stop All Containers</button>
   </div>
@@ -84,6 +91,7 @@
         <th onclick="setSort('instances',7,'num')">CPU %<span class="arrow"></span></th>
         <th onclick="setSort('instances',8,'num')">RAM %<span class="arrow"></span></th>
         <th onclick="setSort('instances',9,'num')">PID<span class="arrow"></span></th>
+        <th>Login</th>
       </tr>
     </thead>
     <tbody id="instances-body"></tbody>
@@ -174,7 +182,7 @@
       document.getElementById(t + '-table').classList.toggle('visible', name === t);
       document.getElementById('tab-' + t).classList.toggle('active', name === t);
     });
-    document.getElementById('pwToggleBtn').style.display = name === 'databases' ? '' : 'none';
+    document.getElementById('pwToggleBtn').style.display = (name === 'databases' || name === 'instances') ? '' : 'none';
     document.getElementById('servicesUpBtn').style.display = name === 'instances' ? '' : 'none';
     document.getElementById('servicesDownBtn').style.display = name === 'instances' ? '' : 'none';
     document.getElementById('dockerUpBtn').style.display = name === 'docker' ? '' : 'none';
@@ -209,6 +217,7 @@
     passwordsVisible = !passwordsVisible;
     document.getElementById('pwToggleBtn').textContent = passwordsVisible ? 'Hide Passwords' : 'Show Passwords';
     renderDatabases();
+    renderInstances();
   }
 
   function setSort(table, colIndex, type) {
@@ -276,6 +285,14 @@
     }
   }
 
+  function loginCellHtml(r) {
+    if (r.loginNote) { return '<span style="color:#9a9ab0; font-size:12px;">' + escapeHtml(r.loginNote) + '</span>'; }
+    if (!r.loginUser) { return '<span style="color:#7a7a94;">-</span>'; }
+    var passText = passwordsVisible ? r.loginPass : '********';
+    return '<span class="copyable" data-copy="' + escapeHtml(r.loginUser) + '" title="Click to copy username">' + escapeHtml(r.loginUser) + '</span>' +
+      ' / <span class="copyable" data-copy="' + escapeHtml(r.loginPass) + '" title="Click to copy password">' + escapeHtml(passText) + '</span>';
+  }
+
   function renderInstances() {
     var cols = [
       function (r) { return r.name; },
@@ -287,7 +304,8 @@
       function (r) { return r.memory; },
       function (r) { return r.cpuPct; },
       function (r) { return r.ramPct; },
-      function (r) { return r.pid_; }
+      function (r) { return r.pid_; },
+      function (r) { return r.loginUser || ''; }
     ];
     var rows = applySort(latest.instances, 'instances', cols);
     var body = document.getElementById('instances-body');
@@ -296,21 +314,23 @@
       var liveClass = r.running ? 'ok' : 'bad';
       var cpuText = r.cpuPct === 'N/A' ? 'N/A' : r.cpuPct + '%';
       var ramText = r.ramPct === 'N/A' ? 'N/A' : r.ramPct + '%';
+      var actionsHtml = r.dockerManaged
+        ? '<span style="color:#7a7a94; font-size:11px;">Managed via Docker tab</span>'
+        : '<button class="action-btn start" data-service="' + escapeHtml(r.name) + '" data-action="start"' + (r.running ? ' disabled' : '') + '>Start</button>' +
+          '<button class="action-btn stop" data-service="' + escapeHtml(r.name) + '" data-action="stop"' + (r.running ? '' : ' disabled') + '>Stop</button>' +
+          '<button class="action-btn restart" data-service="' + escapeHtml(r.name) + '" data-action="restart"' + (r.running ? '' : ' disabled') + '>Restart</button>';
       return '<tr>' +
         '<td class="svc copyable" data-copy="' + escapeHtml(r.name) + '">' + escapeHtml(r.name) + '</td>' +
-        '<td class="copyable" data-copy="' + escapeHtml(r.url) + '"><a href="' + escapeHtml(r.url) + '" target="_blank">' + escapeHtml(r.url) + '</a></td>' +
+        '<td class="copyable" data-copy="' + escapeHtml(r.url) + '">' + (r.tcpOnly ? escapeHtml(r.url.replace(/^https?:\/\//, '')) : '<a href="' + escapeHtml(r.url) + '" target="_blank">' + escapeHtml(r.url) + '</a>') + '</td>' +
         '<td class="' + statusClass + ' copyable" data-copy="' + escapeHtml(r.status) + '">' + escapeHtml(r.status) + '</td>' +
         '<td class="' + liveClass + ' copyable" data-copy="' + (r.running ? 'Running' : 'Not Running') + '">' + (r.running ? 'Running' : 'Not Running') + '</td>' +
-        '<td>' +
-          '<button class="action-btn start" data-service="' + escapeHtml(r.name) + '" data-action="start"' + (r.running ? ' disabled' : '') + '>Start</button>' +
-          '<button class="action-btn stop" data-service="' + escapeHtml(r.name) + '" data-action="stop"' + (r.running ? '' : ' disabled') + '>Stop</button>' +
-          '<button class="action-btn restart" data-service="' + escapeHtml(r.name) + '" data-action="restart"' + (r.running ? '' : ' disabled') + '>Restart</button>' +
-        '</td>' +
+        '<td>' + actionsHtml + '</td>' +
         '<td class="copyable" data-copy="' + escapeHtml(r.started) + '">' + escapeHtml(formatSmartDate(r.started)) + '</td>' +
         '<td class="copyable" data-copy="' + escapeHtml(r.memory) + '">' + escapeHtml(r.memory) + '</td>' +
         '<td class="copyable" data-copy="' + escapeHtml(cpuText) + '">' + escapeHtml(cpuText) + '</td>' +
         '<td class="copyable" data-copy="' + escapeHtml(ramText) + '">' + escapeHtml(ramText) + '</td>' +
         '<td class="copyable" data-copy="' + escapeHtml(String(r.pid_)) + '">' + escapeHtml(String(r.pid_)) + '</td>' +
+        '<td>' + loginCellHtml(r) + '</td>' +
         '</tr>';
     }).join('');
     updateArrows('instances-table', 'instances');
@@ -402,10 +422,53 @@
       .then(function (res) { return res.json(); })
       .then(function (data) {
         showToast(data.message || (data.ok ? 'Done' : 'Failed'));
+        if (action === 'start' && data.ok && data.targets && data.targets.length) {
+          trackStartAllProgress(data.targets);
+        }
         setTimeout(poll, 1500);
       })
       .catch(function () { showToast('Request failed'); })
       .then(function () { if (btn) { setTimeout(function () { btn.disabled = false; }, 1500); } setTimeout(poll, 5000); });
+  }
+
+  var startAllProgressTimer = null;
+
+  function trackStartAllProgress(targets) {
+    var total = targets.length;
+    if (!total) return;
+    if (startAllProgressTimer) { clearTimeout(startAllProgressTimer); startAllProgressTimer = null; }
+    var wrap = document.getElementById('startAllProgress');
+    var fill = document.getElementById('startAllProgressFill');
+    var text = document.getElementById('startAllProgressText');
+    wrap.classList.add('show');
+    fill.style.width = '0%';
+    text.textContent = '0 / ' + total + ' (0%)';
+    var deadline = Date.now() + 6 * 60 * 1000; // safety cap so a stuck start can't poll forever
+    var tick = function () {
+      fetch('/api/start-all-progress', { cache: 'no-store' })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+          var pct = data.percent != null ? data.percent : 0;
+          fill.style.width = pct + '%';
+          text.textContent = data.done + ' / ' + data.total + ' (' + pct + '%)';
+          if (data.done >= data.total) {
+            startAllProgressTimer = null;
+            setTimeout(function () { wrap.classList.remove('show'); }, 2500);
+            return;
+          }
+          if (Date.now() > deadline) {
+            text.textContent += ' - taking longer than expected';
+            startAllProgressTimer = null;
+            return;
+          }
+          startAllProgressTimer = setTimeout(tick, 1500);
+        })
+        .catch(function () {
+          if (Date.now() > deadline) { startAllProgressTimer = null; return; }
+          startAllProgressTimer = setTimeout(tick, 2000);
+        });
+    };
+    tick();
   }
 
   function performDockerComposeAction(action, btn) {
@@ -541,7 +604,7 @@
     }
     var link = e.target.closest('a');
     if (link) { e.stopPropagation(); return; }
-    var cell = e.target.closest('td.copyable');
+    var cell = e.target.closest('.copyable');
     if (cell) { copyText(cell.getAttribute('data-copy')); }
   });
 

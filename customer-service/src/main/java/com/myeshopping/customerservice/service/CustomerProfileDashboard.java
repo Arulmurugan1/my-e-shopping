@@ -14,7 +14,7 @@ import java.util.List;
 @Builder
 public class CustomerProfileDashboard {
     private Long customerId;
-    private Long userId;
+    private String userId;
     private String fullName;
     private String phoneNumber;
     private List<CustomerAddress> addresses;

@@ -34,6 +34,12 @@ function Get-ServiceWorkingDir {
     return Join-Path $RepoRoot $svc.Name
 }
 
+function Get-ServiceRunCommand {
+    param($svc)
+    if ($svc.IsFrontend) { return 'npm install && npm start' }
+    return 'set MAVEN_OPTS=-Xms128m -Xmx384m -XX:+UseSerialGC && mvn spring-boot:run'
+}
+
 function Start-ServiceProcess {
     param($svc)
     $path = Get-ServiceWorkingDir $svc
@@ -42,7 +48,7 @@ function Start-ServiceProcess {
     $existing = (Get-ListeningPortToPidMap)[$svc.Port]
     if ($existing) { return @{ ok = $false; message = "$($svc.Name) is already running (PID $($existing.Pid))" } }
 
-    $runCmd = if ($svc.IsFrontend) { 'npm install && npm start' } else { 'set MAVEN_OPTS=-Xms128m -Xmx384m -XX:+UseSerialGC && mvn spring-boot:run' }
+    $runCmd = Get-ServiceRunCommand $svc
     $argLine = "/k title $($svc.Name) && $runCmd"
     try {
         Start-Process -FilePath 'cmd.exe' -ArgumentList $argLine -WorkingDirectory $path -WindowStyle Normal | Out-Null
@@ -72,7 +78,7 @@ function Restart-ServiceProcess {
     param($svc)
     $existing = (Get-ListeningPortToPidMap)[$svc.Port]
     $path = Get-ServiceWorkingDir $svc
-    $runCmd = if ($svc.IsFrontend) { 'npm install && npm start' } else { 'set MAVEN_OPTS=-Xms128m -Xmx384m -XX:+UseSerialGC && mvn spring-boot:run' }
+    $runCmd = Get-ServiceRunCommand $svc
     $startArgLine = "/k title $($svc.Name) && $runCmd"
     $killPart = if ($existing) { "taskkill /PID $($existing.Pid) /T /F | Out-Null; Start-Sleep -Seconds 2; " } else { '' }
     # The stop-wait-start sequence runs in a detached background process so the dashboard's
@@ -86,6 +92,7 @@ function Invoke-ServiceAction {
     param([string]$ServiceName, [string]$Action)
     $svc = $script:ServicesByName[$ServiceName]
     if (-not $svc) { return @{ ok = $false; message = "Unknown service: $ServiceName" } }
+    if ($svc.IsDockerManaged) { return @{ ok = $false; message = "$($svc.Name) is managed from the Docker tab, not here" } }
     switch ($Action) {
         'start'   { return Start-ServiceProcess $svc }
         'stop'    { return Stop-ServiceProcess $svc }
@@ -97,26 +104,47 @@ function Invoke-ServiceAction {
 function Start-AllServices {
     $portToPid = Get-ListeningPortToPidMap
     $parts = @()
+    $targets = @()
     foreach ($s in $Services) {
+        if ($s.IsDockerManaged) { continue }
         if ($portToPid[[int]$s.Port]) { continue }
         $path = Get-ServiceWorkingDir $s
         if (-not (Test-Path $path)) { continue }
-        $runCmd = if ($s.IsFrontend) { 'npm install && npm start' } else { 'set MAVEN_OPTS=-Xms128m -Xmx384m -XX:+UseSerialGC && mvn spring-boot:run' }
+        $runCmd = Get-ServiceRunCommand $s
         $argLine = "/k title $($s.Name) && $runCmd"
         # Staggered ~2s apart, same pacing as start-all-services.bat, so we don't spawn
         # a dozen+ JVMs at once and repeat the native-memory OOM crash seen before.
         $parts += "Start-Process -FilePath 'cmd.exe' -ArgumentList '$argLine' -WorkingDirectory '$path' -WindowStyle Normal; Start-Sleep -Seconds 2"
+        $targets += $s.Name
     }
     if ($parts.Count -eq 0) { return @{ ok = $false; message = 'All services are already running' } }
     $deferredCmd = $parts -join '; '
     Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-WindowStyle', 'Hidden', '-Command', $deferredCmd) -WindowStyle Hidden | Out-Null
-    return @{ ok = $true; message = "Starting $($parts.Count) service(s) (staggered, ~2s apart)..." }
+    $script:StartAllTargets = $targets
+    return @{ ok = $true; message = "Starting $($parts.Count) service(s) (staggered, ~2s apart)..."; targets = $targets }
+}
+
+function Get-StartAllProgress {
+    $targets = $script:StartAllTargets
+    if (-not $targets -or $targets.Count -eq 0) { return @{ total = 0; done = 0; percent = 100; targets = @() } }
+    $portToPid = Get-ListeningPortToPidMap
+    $rows = @()
+    $doneCount = 0
+    foreach ($name in $targets) {
+        $svc = $script:ServicesByName[$name]
+        $isDone = [bool]($svc -and $portToPid[[int]$svc.Port])
+        if ($isDone) { $doneCount++ }
+        $rows += [PSCustomObject]@{ name = $name; done = $isDone }
+    }
+    $percent = [math]::Round(($doneCount / $targets.Count) * 100)
+    return @{ total = $targets.Count; done = $doneCount; percent = $percent; targets = $rows }
 }
 
 function Stop-AllServices {
     $portToPid = Get-ListeningPortToPidMap
     $count = 0
     foreach ($s in $Services) {
+        if ($s.IsDockerManaged) { continue }
         $entry = $portToPid[[int]$s.Port]
         if ($entry) {
             try { Start-Process -FilePath 'taskkill.exe' -ArgumentList "/PID $($entry.Pid) /T /F" -WindowStyle Hidden | Out-Null; $count++ } catch { }
@@ -138,7 +166,7 @@ function Invoke-ServiceActionAll {
 # --- Docker ---------------------------------------------------------------
 # Container names follow docker compose's "<project>-<service>-1" convention;
 # the project name is the folder holding the compose file ("docker").
-$script:DockerServices = @('postgres', 'redis', 'zookeeper', 'kafka', 'mongodb', 'mysql', 'oracle', 'prometheus', 'grafana')
+$script:DockerServices = @('postgres', 'redis', 'zookeeper', 'kafka', 'kafka-ui', 'opensearch', 'opensearch-dashboards', 'mongodb', 'mysql', 'oracle', 'prometheus', 'grafana')
 $script:DockerComposePath = Join-Path $RepoRoot 'infrastructure\docker\docker-compose.yml'
 
 function Get-DockerStatusList {
@@ -335,11 +363,11 @@ function Get-StatusSnapshot {
         }
 
         $healthTask = $null
-        if ($running) {
+        if ($running -and -not $svc.IsTcpOnly) {
             # A loopback-only IPv6 bind (Angular's dev server) never answers on
             # "localhost", which .NET resolves to 127.0.0.1 first.
             $healthHost = if ($entry.IsV6Only) { '[::1]' } else { 'localhost' }
-            $healthUrl = if ($svc.IsFrontend) { "http://${healthHost}:$($svc.Port)/" } else { "http://${healthHost}:$($svc.Port)/actuator/health" }
+            $healthUrl = if ($svc.IsFrontend -or $svc.IsDockerManaged) { "http://${healthHost}:$($svc.Port)/" } else { "http://${healthHost}:$($svc.Port)/actuator/health" }
             try { $healthTask = $httpClient.GetAsync($healthUrl) } catch { $healthTask = $null }
         }
 
@@ -369,6 +397,7 @@ function Get-StatusSnapshot {
         $status = 'Yet To Start'
         if ($r.Running) {
             $status = 'Issue'
+            if ($r.Svc.IsTcpOnly) { $status = 'Healthy' }
             # Task.IsCompletedSuccessfully doesn't exist on this Windows PowerShell's .NET
             # Framework runtime (always reads as $null/false here), so every health check
             # fell through to "Issue" regardless of the real result - use the fields that
@@ -376,7 +405,7 @@ function Get-StatusSnapshot {
             if ($r.HealthTask -and $r.HealthTask.IsCompleted -and -not $r.HealthTask.IsFaulted -and -not $r.HealthTask.IsCanceled) {
                 try {
                     $resp = $r.HealthTask.Result
-                    if ($r.Svc.IsFrontend) {
+                    if ($r.Svc.IsFrontend -or $r.Svc.IsDockerManaged) {
                         if ($resp.IsSuccessStatusCode) { $status = 'Healthy' }
                     } else {
                         $body = $resp.Content.ReadAsStringAsync().Result
@@ -395,15 +424,20 @@ function Get-StatusSnapshot {
         }
 
         $instances += [PSCustomObject]@{
-            name    = $r.Svc.Name
-            url     = "http://localhost:$($r.Svc.Port)"
-            status  = $status
-            running = $r.Running
-            started = $(if ($r.Started) { $r.Started } else { 'N/A' })
-            memory  = $(if ($r.Running) { "$($r.Mem) GB" } else { 'N/A' })
-            cpuPct  = $(if ($cpuPercent -ne $null) { $cpuPercent } else { 'N/A' })
-            ramPct  = $(if ($ramPercent -ne $null) { $ramPercent } else { 'N/A' })
-            pid_    = $(if ($r.ProcId) { $r.ProcId } else { 'N/A' })
+            name           = $r.Svc.Name
+            url            = $(if ($r.Svc.UrlOverride) { $r.Svc.UrlOverride } else { "http://localhost:$($r.Svc.Port)" })
+            status         = $status
+            running        = $r.Running
+            started        = $(if ($r.Started) { $r.Started } else { 'N/A' })
+            memory         = $(if ($r.Running) { "$($r.Mem) GB" } else { 'N/A' })
+            cpuPct         = $(if ($cpuPercent -ne $null) { $cpuPercent } else { 'N/A' })
+            ramPct         = $(if ($ramPercent -ne $null) { $ramPercent } else { 'N/A' })
+            pid_           = $(if ($r.ProcId) { $r.ProcId } else { 'N/A' })
+            dockerManaged  = [bool]$r.Svc.IsDockerManaged
+            loginUser      = $(if ($r.Svc.LoginUser) { $r.Svc.LoginUser } else { '' })
+            loginPass      = $(if ($r.Svc.LoginPass) { $r.Svc.LoginPass } else { '' })
+            loginNote      = $(if ($r.Svc.LoginNote) { $r.Svc.LoginNote } else { '' })
+            tcpOnly        = [bool]$r.Svc.IsTcpOnly
         }
 
         $dbStatus = 'N/A'
@@ -512,6 +546,9 @@ try {
                     $q = Get-QueryParams $request
                     $result = Invoke-ServiceActionAll -Action $q['action']
                     Write-JsonResponse -response $response -obj $result
+                }
+                '/api/start-all-progress' {
+                    Write-JsonResponse -response $response -obj (Get-StartAllProgress)
                 }
                 '/api/docker-status' {
                     Write-JsonResponse -response $response -obj (Get-DockerStatusList)

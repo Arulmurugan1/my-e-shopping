@@ -23,6 +23,11 @@ public class CustomerController {
 
     private final CustomerService customerService;
 
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<CustomerProfile>>> listProfiles() {
+        return ResponseEntity.ok(buildResponse("Customer profiles fetched successfully", customerService.getAllProfiles()));
+    }
+
     @PostMapping("/profile")
     public ResponseEntity<ApiResponse<CustomerProfile>> createProfile(@Valid @RequestBody CustomerProfileRequest request) {
         CustomerProfile profile = customerService.createOrUpdateProfile(request);
@@ -30,26 +35,26 @@ public class CustomerController {
     }
 
     @GetMapping("/{userId}/profile")
-    public ResponseEntity<ApiResponse<CustomerProfile>> getProfile(@PathVariable Long userId) {
+    public ResponseEntity<ApiResponse<CustomerProfile>> getProfile(@PathVariable String userId) {
         CustomerProfile profile = customerService.getProfileByUserId(userId);
         return ResponseEntity.ok(buildResponse("Customer profile fetched successfully", profile));
     }
 
     @PostMapping("/{userId}/addresses")
-    public ResponseEntity<ApiResponse<CustomerAddress>> addAddress(@PathVariable Long userId,
+    public ResponseEntity<ApiResponse<CustomerAddress>> addAddress(@PathVariable String userId,
                                                                 @Valid @RequestBody AddressRequest request) {
         CustomerAddress address = customerService.addAddress(userId, request);
         return ResponseEntity.ok(buildResponse("Address saved successfully", address));
     }
 
     @GetMapping("/{userId}/addresses")
-    public ResponseEntity<ApiResponse<List<CustomerAddress>>> getAddresses(@PathVariable Long userId) {
+    public ResponseEntity<ApiResponse<List<CustomerAddress>>> getAddresses(@PathVariable String userId) {
         List<CustomerAddress> addresses = customerService.getAddresses(userId);
         return ResponseEntity.ok(buildResponse("Addresses fetched successfully", addresses));
     }
 
     @GetMapping("/{userId}/dashboard")
-    public ResponseEntity<ApiResponse<CustomerProfileDashboard>> getDashboard(@PathVariable Long userId) {
+    public ResponseEntity<ApiResponse<CustomerProfileDashboard>> getDashboard(@PathVariable String userId) {
         CustomerProfileDashboard dashboard = customerService.getDashboard(userId);
         return ResponseEntity.ok(buildResponse("Dashboard fetched successfully", dashboard));
     }

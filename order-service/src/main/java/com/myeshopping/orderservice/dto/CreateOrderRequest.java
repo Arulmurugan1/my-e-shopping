@@ -7,7 +7,16 @@ import java.util.List;
 
 @Data
 public class CreateOrderRequest {
-    @NotNull @Positive private Long customerId;
-    @NotBlank private String shippingAddress;
-    @NotEmpty @Valid private List<OrderLineRequest> lines;
+    
+    @NotNull 
+    @Positive 
+    private Long customerId;
+    
+    @NotBlank 
+    private String shippingAddress;
+    
+    @NotEmpty 
+    @Valid 
+    private List<OrderLineRequest> lines;
+    
 }
