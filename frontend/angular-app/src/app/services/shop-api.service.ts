@@ -6,7 +6,8 @@ export type CartItem = { productId: number; sku: string; productName: string; qu
 export type Cart = { totalItems: number; totalAmount: number; items: CartItem[] };
 export type CustomerProfile = { id: number; userId: string; firstName: string; lastName: string; phoneNumber?: string };
 export type OrderLine = { productId: number; sku: string; productName: string; unitPrice: number; quantity: number };
-export type Order = { id: number; customerId: number; shippingAddress: string; status: string; totalAmount: number; createdAt: string; lines?: OrderLine[] };
+export type Order = { id: number; customerId: number; shippingAddress: string; status: string; totalAmount: number; createdAt: string; updatedAt?: string; lines?: OrderLine[] };
+export type CancelResult = { orderId: number; outcome: 'CANCELLED_AND_REFUNDED' | 'RETURNED_AND_REFUNDED'; orderStatus: string; refundAmount: number };
 
 export type RegisterDetails = { email: string; username: string; mobileNumber: string; dateOfBirth: string; gender: string; password: string };
 export type AdminUser = { id: string; email: string; username?: string | null; mobileNumber?: string | null; role: string; active: boolean; createdAt: string };
@@ -68,6 +69,14 @@ export class ShopApiService {
 
   getOrders(customerId: number) {
     return this.http.get<{ data: Order[] }>(`${this.api}/orders/customer/${customerId}`);
+  }
+
+  downloadInvoice(orderId: number) {
+    return this.http.get(`${this.api}/invoices/orders/${orderId}/pdf`, { responseType: 'blob' });
+  }
+
+  cancelOrder(orderId: number, reason = 'Cancelled by customer') {
+    return this.http.post<{ data: CancelResult }>(`${this.api}/returns/orders/${orderId}/cancel`, { reason });
   }
 
   adminListUsers() {

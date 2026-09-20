@@ -18,10 +18,19 @@ import java.util.Map;
 public class KafkaConfig {
     @Bean
     KafkaTemplate<String, DomainEvent> kafkaTemplate(org.springframework.boot.autoconfigure.kafka.KafkaProperties properties) {
+        
         Map<String, Object> producerProperties = new HashMap<>(properties.buildProducerProperties());
+
         producerProperties.put(org.apache.kafka.clients.producer.ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         producerProperties.put(org.apache.kafka.clients.producer.ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        
         return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(producerProperties));
+    }
+
+    /** Retry a failed fulfilment a few times (2s apart), then log and move on so one bad message cannot block the topic. */
+    @Bean
+    org.springframework.kafka.listener.DefaultErrorHandler kafkaErrorHandler() {
+        return new org.springframework.kafka.listener.DefaultErrorHandler(new org.springframework.util.backoff.FixedBackOff(2000L, 3L));
     }
 
     @Bean

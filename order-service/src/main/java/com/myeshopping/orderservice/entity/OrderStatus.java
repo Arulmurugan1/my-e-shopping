@@ -1,13 +1,16 @@
 package com.myeshopping.orderservice.entity;
 
-public enum OrderStatus { 
-        ORDERED, 
-        PICKING_PENDING, 
-        PICKING_IN_PROGRESS, 
-        PICKED, 
-        SHIPPING_PENDING, 
-        SHIPPED, 
-        IN_DELIVERY, 
-        OUT_FOR_DELIVERY, 
-        DELIVERED, CANCELLED 
+public enum OrderStatus {
+    ORDERED,
+    PICKING_PENDING,
+    PICKING_IN_PROGRESS,
+    PICKED,
+    SHIPPING_PENDING,
+    SHIPPED,
+    IN_DELIVERY,
+    OUT_FOR_DELIVERY,
+    DELIVERED,
+    CANCELLED,
+    RETURNED,
+    REFUNDED
 }

@@ -9,7 +9,9 @@ An e-supermarket platform built as Spring Boot microservices behind an API gatew
 - Sign in with a username, email or mobile number; register with email, username, mobile number, date of birth and gender
 - Browse items (with pictures, live available stock and a filter box), add them to a cart with a quantity stepper, and place an order
 - Success or failure popup on checkout; the cart clears after a successful order
-- Home page with account details and order history
+- Home page with account details and order history; statuses update on their own as an order is picked and shipped
+- Download a PDF invoice for any order
+- Cancel an order at any point before delivery, or return it within 2 days after delivery; either way it is refunded
 
 ### Admins
 
@@ -54,6 +56,22 @@ Angular (4200) ──► API Gateway (8080) ──► auth, inventory, cart, ord
 | 4200 | Angular app | - |
 
 Stock: placing an order reserves each item in inventory-service; if any item is short the whole order is rejected and earlier reservations are released. Cancelling an order releases the stock.
+
+Fulfilment: placing an order publishes an `OrderCreated` event to the Kafka topic `order-events` (after the order is saved). A consumer in order-service then drives the order through, each service updating the order status itself:
+
+1. order-group-service: `PICKING_IN_PROGRESS`
+2. picking-service: `PICKED`
+3. shipment-service: `SHIPPED`
+4. notification-service: publishes `ShipmentCompleted` to the topic `shipment-events`
+5. delivery-service: `IN_DELIVERY`, `OUT_FOR_DELIVERY`, then `DELIVERED`
+
+The whole chain takes a few seconds, so in practice an order reaches `DELIVERED` almost immediately and can then only be returned (see below).
+
+The consumer resumes from the order's current status if a step is retried. Kafka is only used when order-service runs with the `postgres` profile, which the ops dashboard sets for it automatically (start it by hand with `mvn spring-boot:run -Dspring-boot.run.profiles=postgres`).
+
+Cancel and return: `return-refund-service` handles `POST /api/v1/returns/orders/{id}/cancel`. An order that has not been delivered goes `CANCELLED` then `REFUNDED`; a delivered order (within 2 days of delivery) goes `RETURNED` then `REFUNDED`. Stock is released either way. The refund is a record in the return-refund database; no payment gateway is involved yet.
+
+Invoices: `invoice-service` builds the PDF on demand at `GET /api/v1/invoices/orders/{id}/pdf`.
 
 ## Running it locally
 
@@ -142,7 +160,10 @@ my-e-shopping/
 - **Development credentials.** The database, Grafana and OpenSearch passwords and the JWT signing secret are local-development defaults kept in `infrastructure/docker/docker-compose.yml`, the services' `application.*` files and the dashboard data files. Do not reuse them anywhere real. Before publishing the repository or deploying, move them to environment variables or a secrets store and rotate them.
 - **Server-side authorization covers only the user-administration endpoints** (`/api/v1/auth/admin/**`, which require an admin token). Other admin actions, such as adding SKUs or reading customer totals, are hidden from normal users in the UI but the underlying service endpoints are not authenticated. Adding token validation at the gateway is the next step.
 - Login tokens expire after one hour; the app signs you out when that happens.
-- Shipping, picking and payment flows are not yet connected to stock, so reserved stock is only released on cancellation, not permanently deducted on shipment.
+- Stock stays reserved until an order is cancelled or returned; it is not permanently deducted on shipment.
+- Delivery is simulated: fulfilment moves an order to `DELIVERED` within seconds, so the "cancel before delivery" window is very short. Add a delay before the delivery step if you want to demo cancelling. The 2-day return window is measured from the order's last update once it is `DELIVERED`.
+- Orders placed before the Kafka consumer existed stay in `ORDERED`; nothing reprocesses them.
+- Cancel, refund and invoice endpoints are not authenticated server-side, so anyone who can reach the gateway can call them for any order id.
 - Kubernetes manifests, AWS resources and production hardening are still follow-up work.
 
 ## More detail

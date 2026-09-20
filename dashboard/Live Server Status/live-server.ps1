@@ -37,7 +37,8 @@ function Get-ServiceWorkingDir {
 function Get-ServiceRunCommand {
     param($svc)
     if ($svc.IsFrontend) { return 'npm install && npm start' }
-    return 'set MAVEN_OPTS=-Xms128m -Xmx384m -XX:+UseSerialGC && mvn spring-boot:run'
+    $profileArg = if ($svc.Profile) { " -Dspring-boot.run.profiles=$($svc.Profile)" } else { '' }
+    return "set MAVEN_OPTS=-Xms128m -Xmx384m -XX:+UseSerialGC && mvn spring-boot:run$profileArg"
 }
 
 function Start-ServiceProcess {

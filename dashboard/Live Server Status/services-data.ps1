@@ -9,7 +9,7 @@ $Services = @(
     @{ Name = 'auth-service';          Port = 8081; DbType = 'Oracle';     DbHost = 'localhost'; DbPort = 1521;  DbName = 'XE';               DbUser = 'system';      DbPass = 'myeshopping123' },
     @{ Name = 'inventory-service';     Port = 8082; DbType = 'PostgreSQL'; DbHost = 'localhost'; DbPort = 5432;  DbName = 'inventory_db';     DbUser = 'myeshopping'; DbPass = 'myeshopping' },
     @{ Name = 'cart-service';          Port = 8083; DbType = 'PostgreSQL'; DbHost = 'localhost'; DbPort = 5432;  DbName = 'cart_db';          DbUser = 'myeshopping'; DbPass = 'myeshopping' },
-    @{ Name = 'order-service';         Port = 8084; DbType = 'PostgreSQL'; DbHost = 'localhost'; DbPort = 5432;  DbName = 'order_db';         DbUser = 'myeshopping'; DbPass = 'myeshopping' },
+    @{ Name = 'order-service';         Port = 8084; DbType = 'PostgreSQL'; DbHost = 'localhost'; DbPort = 5432;  DbName = 'order_db';         DbUser = 'myeshopping'; DbPass = 'myeshopping'; Profile = 'postgres' },
     @{ Name = 'payment-service';       Port = 8085; DbType = 'PostgreSQL'; DbHost = 'localhost'; DbPort = 5432;  DbName = 'payment_db';       DbUser = 'myeshopping'; DbPass = 'myeshopping' },
     @{ Name = 'picking-service';       Port = 8086; DbType = 'PostgreSQL'; DbHost = 'localhost'; DbPort = 5432;  DbName = 'picking_db';       DbUser = 'myeshopping'; DbPass = 'myeshopping' },
     @{ Name = 'shipment-service';      Port = 8087; DbType = 'MySQL';      DbHost = 'localhost'; DbPort = 3306;  DbName = 'shipment_db';      DbUser = 'myeshopping'; DbPass = 'myeshopping' },

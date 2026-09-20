@@ -10,6 +10,7 @@
             <div><span class="eyebrow">ORDERS</span>
                 <h2>Your order history</h2>
             </div>
+            <button class="refresh" type="button" (click)="loadOrders()">Refresh</button>
         </div>
         <p class="status" *ngIf="status">{{ status }}</p>
         <table class="data-table" *ngIf="orders.length">
@@ -19,16 +20,29 @@
                     <th>Status</th>
                     <th>Total</th>
                     <th>Placed</th>
+                    <th>Invoice</th>
+                    <th>Action</th>
                 </tr>
             </thead>
             <tbody>
                 <tr *ngFor="let order of orders">
                     <td>#{{ order.id }}</td>
-                    <td><span class="badge">{{ order.status }}</span></td>
+                    <td><span class="badge" [class.badge-off]="isClosed(order)">{{ statusLabel(order.status) }}</span></td>
                     <td>${{ order.totalAmount | number:'1.2-2' }}</td>
                     <td>{{ order.createdAt | date:'medium' }}</td>
+                    <td>
+                        <button class="mini alt" type="button" [disabled]="downloadingId === order.id" (click)="downloadInvoice(order)">
+                            {{ downloadingId === order.id ? 'Preparing...' : 'Download invoice' }}</button>
+                    </td>
+                    <td>
+                        <button class="mini cancel" type="button" *ngIf="canCancel(order)" [disabled]="cancellingId === order.id"
+                            (click)="cancelOrder(order)">{{ cancellingId === order.id ? 'Cancelling...' : (order.status === 'DELIVERED' ? 'Return' : 'Cancel') }}</button>
+                        <span class="muted" *ngIf="!canCancel(order)">{{ isClosed(order) ? 'Closed' : 'Return window ended' }}</span>
+                    </td>
                 </tr>
             </tbody>
         </table>
     </section>
 </main>
+<app-popup [visible]="popupVisible" [success]="popupSuccess" [title]="popupTitle" [message]="popupMessage"
+    (closed)="closePopup()"></app-popup>
