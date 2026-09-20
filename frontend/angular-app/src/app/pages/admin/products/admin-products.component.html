@@ -1,0 +1,69 @@
+<app-nav></app-nav>
+<main class="page">
+    <div class="section-heading">
+        <div><span class="eyebrow">ADMIN</span>
+            <h2>SKUs</h2>
+        </div>
+    </div>
+
+    <form class="admin-form" (ngSubmit)="add()">
+        <label class="field"><span>SKU code *</span>
+            <input [(ngModel)]="form.sku" name="sku" placeholder="e.g. MLK-001" required></label>
+        <label class="field"><span>Product name *</span>
+            <input [(ngModel)]="form.name" name="name" placeholder="e.g. Green Milk" required></label>
+        <label class="field"><span>Description</span>
+            <input [(ngModel)]="form.description" name="description" placeholder="e.g. Pack of 500ml"></label>
+        <label class="field"><span>Image URL (optional)</span>
+            <input [(ngModel)]="form.imageUrl" name="imageUrl" type="url" placeholder="https://..."></label>
+        <label class="field field-narrow"><span>Price ($)</span>
+            <input [(ngModel)]="form.price" name="price" type="number" min="0" step="0.01" placeholder="0.00"></label>
+        <label class="field field-narrow"><span>Initial stock (units)</span>
+            <input [(ngModel)]="form.initialStock" name="initialStock" type="number" min="0" step="1" placeholder="0"></label>
+        <button type="submit" [disabled]="saving">{{ saving ? 'Adding...' : 'Add SKU' }}</button>
+    </form>
+    <p class="status" *ngIf="status">{{ status }}</p>
+
+    <table class="data-table" *ngIf="products.length">
+        <thead>
+            <tr>
+                <th>SKU</th>
+                <th>Image</th>
+                <th>Name</th>
+                <th>Price</th>
+                <th>In stock</th>
+                <th>Reserved</th>
+                <th>Available</th>
+                <th>Raise inventory</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr *ngFor="let product of products">
+                <td>{{ product.sku }}</td>
+                <td class="image-cell">
+                    <img class="thumb" *ngIf="product.imageUrl" [src]="product.imageUrl" [alt]="product.name" referrerpolicy="no-referrer"
+                        (error)="$any($event.target).style.display = 'none'">
+                    <input class="url-input" type="url" placeholder="https://..." [name]="'image' + product.id"
+                        [ngModel]="imageEdits[product.id] ?? product.imageUrl ?? ''" (ngModelChange)="imageEdits[product.id] = $event"
+                        [ngModelOptions]="{standalone: true}">
+                    <button class="mini alt" type="button" [disabled]="savingImageId === product.id" (click)="saveImage(product)">
+                        {{ savingImageId === product.id ? 'Saving...' : 'Save' }}</button>
+                </td>
+                <td>{{ product.name }}<br><span class="muted">{{ product.description }}</span></td>
+                <td>${{ product.price | number:'1.2-2' }}</td>
+                <td>{{ product.stockQuantity }}</td>
+                <td>{{ product.reservedQuantity }}</td>
+                <td><span class="badge" [class.badge-off]="product.availableQuantity <= 0">{{ product.availableQuantity }}</span></td>
+                <td class="row-actions">
+                    <input class="stock-input" type="number" min="1" step="1" placeholder="Qty" [name]="'restock' + product.id"
+                        [ngModel]="restock[product.id]" (ngModelChange)="restock[product.id] = $event"
+                        [ngModelOptions]="{standalone: true}">
+                    <button class="mini" type="button" [disabled]="restockingId === product.id" (click)="addStock(product)">
+                        {{ restockingId === product.id ? 'Adding...' : 'Add stock' }}</button>
+                </td>
+                <td><button class="remove" (click)="deactivate(product)">Deactivate</button></td>
+            </tr>
+        </tbody>
+    </table>
+    <p class="empty" *ngIf="!products.length">No active SKUs yet.</p>
+</main>

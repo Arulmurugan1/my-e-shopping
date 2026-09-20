@@ -7,9 +7,11 @@ import com.myeshopping.cartservice.entity.CartItem;
 import com.myeshopping.cartservice.entity.CartStatus;
 import com.myeshopping.cartservice.repository.CartRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CartService {
@@ -58,6 +60,15 @@ public class CartService {
         Cart cart = getCart(customerId);
         CartItem item = findItem(cart, productId);
         cart.getItems().remove(item);
+        return cartRepository.save(cart);
+    }
+
+    @Transactional
+    public Cart clearCart(Long customerId) {
+        Cart cart = getCart(customerId);
+        int removed = cart.getItems().size();
+        cart.getItems().clear();
+        log.info("Cart cleared for customer {} ({} items removed)", customerId, removed);
         return cartRepository.save(cart);
     }
 

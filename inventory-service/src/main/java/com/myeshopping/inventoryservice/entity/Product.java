@@ -16,6 +16,8 @@ public class Product {
     private String name;
     @Column(length = 1000)
     private String description;
+    @Column(length = 1000)
+    private String imageUrl;
     @Column(nullable = false)
     private double price;
     @Column(nullable = false)

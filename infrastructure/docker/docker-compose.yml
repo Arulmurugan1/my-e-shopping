@@ -40,21 +40,125 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,INTERNAL://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,INTERNAL://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks: [eshop-platform]
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.2
+    ports: ["8180:8080"]
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+    depends_on: [kafka]
+    networks: [eshop-platform]
+  mongodb:
+    image: mongo:7
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: myeshopping
+      MONGO_INITDB_ROOT_PASSWORD: myeshopping
+    ports: ["27017:27017"]
+    volumes:
+      - mongodb-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [eshop-platform]
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: myeshopping
+      MYSQL_USER: myeshopping
+      MYSQL_PASSWORD: myeshopping
+      MYSQL_DATABASE: myeshopping
+    ports: ["3306:3306"]
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ../mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [eshop-platform]
+  oracle:
+    image: gvenzl/oracle-xe:21-slim-faststart
+    environment:
+      ORACLE_PASSWORD: myeshopping123
+      ORACLE_ALLOW_REMOTE: true
+    ports: ["1521:1521"]
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+    healthcheck:
+      test: ["CMD", "sqlplus", "-L", "system/myeshopping123@//localhost:1521/XE", "as", "sysdba", "SELECT 1 FROM dual"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     networks: [eshop-platform]
   prometheus:
     image: prom/prometheus:v2.54.1
     ports: ["9090:9090"]
     volumes:
       - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks: [eshop-platform]
   grafana:
     image: grafana/grafana:11.2.0
     ports: ["3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: myeshopping
+      GF_INSTALL_PLUGINS: grafana-opensearch-datasource
+    volumes:
+      - ../grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
     depends_on: [prometheus]
+    networks: [eshop-platform]
+  opensearch:
+    image: opensearchproject/opensearch:2.17.1
+    environment:
+      discovery.type: single-node
+      compatibility.override_main_response_version: "true"
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: MyEshopping123!
+      DISABLE_SECURITY_PLUGIN: "false"
+    ports: ["9200:9200"]
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sk -u admin:MyEshopping123! https://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+    networks: [eshop-platform]
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.17.1
+    environment:
+      OPENSEARCH_HOSTS: '["https://opensearch:9200"]'
+    ports: ["5601:5601"]
+    depends_on: [opensearch]
+    networks: [eshop-platform]
+  filebeat:
+    image: docker.elastic.co/beats/filebeat-oss:7.12.1
+    user: root
+    command: ["filebeat", "-e", "--strict.perms=false"]
+    environment:
+      OPENSEARCH_PASSWORD: MyEshopping123!
+    volumes:
+      - ../filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ../../logs:/var/log/eshop:ro
+    depends_on: [opensearch]
+    networks: [eshop-platform]
 volumes:
   postgres-data:
   redis-data:
+  mongodb-data:
+  grafana-data:
+  mysql-data:
+  oracle-data:
+  opensearch-data:
 networks:
   eshop-platform:

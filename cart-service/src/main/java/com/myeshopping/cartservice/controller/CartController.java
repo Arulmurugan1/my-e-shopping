@@ -38,6 +38,11 @@ public class CartController {
         return ResponseEntity.ok(response("Item removed successfully", cartService.removeItem(customerId, productId)));
     }
 
+    @DeleteMapping("/{customerId}")
+    public ResponseEntity<ApiResponse<Cart>> clearCart(@PathVariable Long customerId) {
+        return ResponseEntity.ok(response("Cart cleared successfully", cartService.clearCart(customerId)));
+    }
+
     @PostMapping("/{customerId}/checkout")
     public ResponseEntity<ApiResponse<CheckoutValidation>> checkout(@PathVariable Long customerId) {
         return ResponseEntity.ok(response("Checkout validation completed", cartService.validateCheckout(customerId)));

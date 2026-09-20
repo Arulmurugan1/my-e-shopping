@@ -31,6 +31,12 @@ public class InventoryController {
         return ResponseEntity.ok(response("Product fetched successfully", inventoryService.getProduct(productId)));
     }
 
+    @PutMapping("/api/v1/products/{productId}/image")
+    public ResponseEntity<ApiResponse<Product>> updateImage(@PathVariable Long productId,
+                                                             @Valid @RequestBody ProductImageRequest request) {
+        return ResponseEntity.ok(response("Product image updated successfully", inventoryService.updateImage(productId, request.getImageUrl())));
+    }
+
     @PostMapping("/api/v1/inventory/{productId}/reserve")
     public ResponseEntity<ApiResponse<Product>> reserve(@PathVariable Long productId,
                                                          @Valid @RequestBody StockReservationRequest request) {

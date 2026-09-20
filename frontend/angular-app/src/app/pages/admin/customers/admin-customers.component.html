@@ -1,0 +1,32 @@
+<app-nav></app-nav>
+<main class="page">
+    <div class="section-heading">
+        <div><span class="eyebrow">ADMIN</span>
+            <h2>Customers with orders</h2>
+        </div>
+        <p class="muted" *ngIf="rows.length">{{ rows.length }} customers &middot; {{ totalOrders }} orders &middot; ${{ grandTotal | number:'1.2-2' }} total (cancelled orders excluded)</p>
+    </div>
+    <p class="status" *ngIf="status">{{ status }}</p>
+    <table class="data-table" *ngIf="rows.length">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Customer</th>
+                <th>Email</th>
+                <th>Orders</th>
+                <th>Total spent</th>
+                <th>Last order</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr *ngFor="let row of rows; let i = index">
+                <td>{{ i + 1 }}</td>
+                <td>{{ row.name }} <span class="muted">(ID {{ row.customerId }})</span></td>
+                <td>{{ row.email }}</td>
+                <td>{{ row.orderCount }}</td>
+                <td><strong>${{ row.totalAmount | number:'1.2-2' }}</strong></td>
+                <td>{{ row.lastOrderAt | date:'medium' }}</td>
+            </tr>
+        </tbody>
+    </table>
+</main>

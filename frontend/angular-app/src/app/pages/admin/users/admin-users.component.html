@@ -1,0 +1,47 @@
+<app-nav></app-nav>
+<main class="page">
+    <div class="section-heading">
+        <div><span class="eyebrow">ADMIN</span>
+            <h2>Users</h2>
+        </div>
+        <div class="filter-tabs">
+            <button [class.on]="filter === 'all'" (click)="filter = 'all'">All ({{ users.length }})</button>
+            <button [class.on]="filter === 'active'" (click)="filter = 'active'">Active ({{ activeCount }})</button>
+            <button [class.on]="filter === 'inactive'" (click)="filter = 'inactive'">Inactive ({{ inactiveCount }})</button>
+        </div>
+    </div>
+    <p class="muted rules-note">
+        <ng-container *ngIf="iAmSuperAdmin">As super admin you can activate, deactivate and change the role of any admin or customer.</ng-container>
+        <ng-container *ngIf="!iAmSuperAdmin">Admins can activate or deactivate customers. Only the super admin can manage other admins.</ng-container>
+    </p>
+    <p class="status" *ngIf="status">{{ status }}</p>
+    <table class="data-table" *ngIf="visibleUsers.length">
+        <thead>
+            <tr>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Joined</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr *ngFor="let user of visibleUsers">
+                <td>{{ user.email }} <span class="muted" *ngIf="isMe(user)">(you)</span>
+                    <br><span class="muted">{{ user.username ? '@' + user.username : 'no username' }} &middot; {{ user.mobileNumber || 'no mobile' }}</span></td>
+                <td><span class="badge" [class.badge-admin]="user.role !== 'CUSTOMER'" [class.badge-super]="user.role === 'SUPER_ADMIN'">{{ roleLabel(user.role) }}</span></td>
+                <td><span class="badge" [class.badge-off]="!user.active">{{ user.active ? 'ACTIVE' : 'INACTIVE' }}</span></td>
+                <td>{{ user.createdAt | date:'mediumDate' }}</td>
+                <td class="row-actions">
+                    <button class="mini" [disabled]="!canToggleActive(user)"
+                        [title]="canToggleActive(user) ? '' : 'You are not allowed to change this account'"
+                        (click)="toggleActive(user)">{{ user.active ? 'Deactivate' : 'Activate' }}</button>
+                    <button class="mini alt" *ngIf="iAmSuperAdmin" [disabled]="!canChangeRole(user)"
+                        [title]="canChangeRole(user) ? '' : 'This role cannot be changed'"
+                        (click)="toggleAdmin(user)">{{ user.role === 'ADMIN' ? 'Remove admin' : 'Make admin' }}</button>
+                    <span class="muted" *ngIf="user.role === 'SUPER_ADMIN'">Protected</span>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</main>

@@ -1,0 +1,58 @@
+<app-nav></app-nav>
+<main class="page">
+    <section class="catalog">
+        <div class="section-heading">
+            <div><span class="eyebrow">CATALOG</span>
+                <h2>Good things, ready now</h2>
+            </div><button class="refresh" (click)="loadProducts()">Refresh</button>
+        </div>
+        <div class="catalog-filter">
+            <input type="search" [(ngModel)]="search" name="search" placeholder="Filter items by name, SKU or description"
+                aria-label="Filter items">
+            <button *ngIf="search" type="button" class="refresh" (click)="search = ''">Clear</button>
+            <span class="muted" *ngIf="products.length">Showing {{ filteredProducts.length }} of {{ products.length }}</span>
+        </div>
+        <p class="status" *ngIf="status">{{ status }}</p>
+        <div class="products">
+            <article class="product" *ngFor="let product of filteredProducts">
+                <div class="product-art">
+                    <img *ngIf="product.imageUrl && !brokenImages[product.id]" [src]="product.imageUrl" [alt]="product.name"
+                        loading="lazy" referrerpolicy="no-referrer" (error)="brokenImages[product.id] = true">
+                    <ng-container *ngIf="!product.imageUrl || brokenImages[product.id]">{{ product.name.charAt(0) }}</ng-container>
+                </div>
+                <div class="product-copy"><span class="sku">{{ product.sku }}</span>
+                    <h3>{{ product.name }}</h3>
+                    <p>{{ product.description }}</p>
+                    <p class="stock" [class.low]="product.availableQuantity > 0 && product.availableQuantity <= 5"
+                        [class.out]="product.availableQuantity <= 0">
+                        {{ product.availableQuantity <= 0 ? 'Out of stock' : 'Available: ' + product.availableQuantity }}
+                        <span *ngIf="product.availableQuantity > 0 && product.availableQuantity <= 5"> (low stock)</span>
+                    </p>
+                    <div class="product-foot">
+                        <strong>${{ product.price | number:'1.2-2' }}</strong>
+                        <button *ngIf="quantityOf(product) === 0" [disabled]="busyProductId !== null || product.availableQuantity <= 0"
+                            (click)="increase(product)">Add to cart</button>
+                        <div class="qty" *ngIf="quantityOf(product) > 0">
+                            <button class="qty-btn" [disabled]="busyProductId !== null" (click)="decrease(product)"
+                                aria-label="Decrease quantity">&minus;</button>
+                            <span class="qty-value">{{ quantityOf(product) }}</span>
+                            <button class="qty-btn" [disabled]="busyProductId !== null || quantityOf(product) >= product.availableQuantity"
+                                (click)="increase(product)" aria-label="Increase quantity">+</button>
+                        </div>
+                    </div>
+                    <p class="line-total" *ngIf="quantityOf(product) > 0">
+                        {{ quantityOf(product) }} &times; ${{ product.price | number:'1.2-2' }} =
+                        <strong>${{ quantityOf(product) * product.price | number:'1.2-2' }}</strong>
+                    </p>
+                </div>
+            </article>
+            <p class="empty" *ngIf="!products.length">No products loaded yet.</p>
+            <p class="empty" *ngIf="products.length && !filteredProducts.length">No items match "{{ search }}".</p>
+        </div>
+    </section>
+</main>
+<div class="cart-bar" *ngIf="cart?.items?.length">
+    <span>{{ cart!.totalItems }} item(s) in your cart</span>
+    <span class="cart-bar-total">Total: <strong>${{ cart!.totalAmount | number:'1.2-2' }}</strong></span>
+    <a routerLink="/cart" class="cart-bar-link">View cart</a>
+</div>

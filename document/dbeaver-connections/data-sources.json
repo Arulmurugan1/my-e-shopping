@@ -1,0 +1,178 @@
+{
+  "folders": {
+    "My E-Shopping": {}
+  },
+  "connections": {
+    "svc-auth-service": {
+      "provider": "oracle",
+      "driver": "oracle_thin",
+      "name": "auth-service (Oracle XE)",
+      "folder": "My E-Shopping",
+      "save-password": false,
+      "configuration": {
+        "host": "localhost", "port": "1521", "database": "XE",
+        "url": "jdbc:oracle:thin:@localhost:1521:XE",
+        "type": "dev", "auth-model": "native", "user": "system",
+        "provider-properties": { "@dbeaver-sid-service@": "SID" }
+      }
+    },
+    "svc-logging-service": {
+      "provider": "oracle",
+      "driver": "oracle_thin",
+      "name": "logging-service (Oracle XE)",
+      "folder": "My E-Shopping",
+      "save-password": false,
+      "configuration": {
+        "host": "localhost", "port": "1521", "database": "XE",
+        "url": "jdbc:oracle:thin:@localhost:1521:XE",
+        "type": "dev", "auth-model": "native", "user": "system",
+        "provider-properties": { "@dbeaver-sid-service@": "SID" }
+      }
+    },
+    "svc-audit-service": {
+      "provider": "oracle",
+      "driver": "oracle_thin",
+      "name": "audit-service (Oracle XE)",
+      "folder": "My E-Shopping",
+      "save-password": false,
+      "configuration": {
+        "host": "localhost", "port": "1521", "database": "XE",
+        "url": "jdbc:oracle:thin:@localhost:1521:XE",
+        "type": "dev", "auth-model": "native", "user": "system",
+        "provider-properties": { "@dbeaver-sid-service@": "SID" }
+      }
+    },
+    "svc-inventory-service": {
+      "provider": "mongodb",
+      "driver": "mongodb",
+      "name": "inventory-service (MongoDB)",
+      "folder": "My E-Shopping",
+      "save-password": false,
+      "configuration": {
+        "host": "localhost", "port": "27017", "database": "inventory_db",
+        "url": "mongodb://localhost:27017/inventory_db?authSource=admin",
+        "type": "dev", "auth-model": "native", "user": "myeshopping"
+      }
+    },
+    "svc-cart-service": {
+      "provider": "postgresql",
+      "driver": "postgres-jdbc",
+      "name": "cart-service (PostgreSQL - cart_db)",
+      "folder": "My E-Shopping",
+      "save-password": false,
+      "configuration": {
+        "host": "localhost", "port": "5432", "database": "cart_db",
+        "url": "jdbc:postgresql://localhost:5432/cart_db",
+        "type": "dev", "auth-model": "native", "user": "myeshopping"
+      }
+    },
+    "svc-order-service": {
+      "provider": "postgresql",
+      "driver": "postgres-jdbc",
+      "name": "order-service (PostgreSQL - order_db)",
+      "folder": "My E-Shopping",
+      "save-password": false,
+      "configuration": {
+        "host": "localhost", "port": "5432", "database": "order_db",
+        "url": "jdbc:postgresql://localhost:5432/order_db",
+        "type": "dev", "auth-model": "native", "user": "myeshopping"
+      }
+    },
+    "svc-payment-service": {
+      "provider": "postgresql",
+      "driver": "postgres-jdbc",
+      "name": "payment-service (PostgreSQL - payment_db)",
+      "folder": "My E-Shopping",
+      "save-password": false,
+      "configuration": {
+        "host": "localhost", "port": "5432", "database": "payment_db",
+        "url": "jdbc:postgresql://localhost:5432/payment_db",
+        "type": "dev", "auth-model": "native", "user": "myeshopping"
+      }
+    },
+    "svc-picking-service": {
+      "provider": "postgresql",
+      "driver": "postgres-jdbc",
+      "name": "picking-service (PostgreSQL - picking_db)",
+      "folder": "My E-Shopping",
+      "save-password": false,
+      "configuration": {
+        "host": "localhost", "port": "5432", "database": "picking_db",
+        "url": "jdbc:postgresql://localhost:5432/picking_db",
+        "type": "dev", "auth-model": "native", "user": "myeshopping"
+      }
+    },
+    "svc-invoice-service": {
+      "provider": "postgresql",
+      "driver": "postgres-jdbc",
+      "name": "invoice-service (PostgreSQL - invoice_db)",
+      "folder": "My E-Shopping",
+      "save-password": false,
+      "configuration": {
+        "host": "localhost", "port": "5432", "database": "invoice_db",
+        "url": "jdbc:postgresql://localhost:5432/invoice_db",
+        "type": "dev", "auth-model": "native", "user": "myeshopping"
+      }
+    },
+    "svc-customer-service": {
+      "provider": "postgresql",
+      "driver": "postgres-jdbc",
+      "name": "customer-service (PostgreSQL - customer_db)",
+      "folder": "My E-Shopping",
+      "save-password": false,
+      "configuration": {
+        "host": "localhost", "port": "5432", "database": "customer_db",
+        "url": "jdbc:postgresql://localhost:5432/customer_db",
+        "type": "dev", "auth-model": "native", "user": "myeshopping"
+      }
+    },
+    "svc-shipment-service": {
+      "provider": "mysql",
+      "driver": "mysql8",
+      "name": "shipment-service (MySQL - shipment_db)",
+      "folder": "My E-Shopping",
+      "save-password": false,
+      "configuration": {
+        "host": "localhost", "port": "3306", "database": "shipment_db",
+        "url": "jdbc:mysql://localhost:3306/shipment_db",
+        "type": "dev", "auth-model": "native", "user": "myeshopping"
+      }
+    },
+    "svc-delivery-service": {
+      "provider": "mysql",
+      "driver": "mysql8",
+      "name": "delivery-service (MySQL - delivery_db)",
+      "folder": "My E-Shopping",
+      "save-password": false,
+      "configuration": {
+        "host": "localhost", "port": "3306", "database": "delivery_db",
+        "url": "jdbc:mysql://localhost:3306/delivery_db",
+        "type": "dev", "auth-model": "native", "user": "myeshopping"
+      }
+    },
+    "svc-return-refund-service": {
+      "provider": "mysql",
+      "driver": "mysql8",
+      "name": "return-refund-service (MySQL - return_refund_db)",
+      "folder": "My E-Shopping",
+      "save-password": false,
+      "configuration": {
+        "host": "localhost", "port": "3306", "database": "return_refund_db",
+        "url": "jdbc:mysql://localhost:3306/return_refund_db",
+        "type": "dev", "auth-model": "native", "user": "myeshopping"
+      }
+    },
+    "svc-notification-service": {
+      "provider": "mysql",
+      "driver": "mysql8",
+      "name": "notification-service (MySQL - notification_db)",
+      "folder": "My E-Shopping",
+      "save-password": false,
+      "configuration": {
+        "host": "localhost", "port": "3306", "database": "notification_db",
+        "url": "jdbc:mysql://localhost:3306/notification_db",
+        "type": "dev", "auth-model": "native", "user": "myeshopping"
+      }
+    }
+  }
+}

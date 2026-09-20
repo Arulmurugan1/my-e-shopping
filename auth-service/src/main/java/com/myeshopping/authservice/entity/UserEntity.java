@@ -24,6 +24,12 @@ public class UserEntity {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(unique = true, length = 30)
+    private String username;
+
+    @Column(name = "mobile_number", unique = true, length = 20)
+    private String mobileNumber;
+
     @Column(nullable = false)
     private String password;
 

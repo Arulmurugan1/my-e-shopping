@@ -22,9 +22,21 @@ public class InventoryService {
         }
         Product product = Product.builder()
                 .sku(request.getSku()).name(request.getName()).description(request.getDescription())
+                .imageUrl(blankToNull(request.getImageUrl()))
                 .price(request.getPrice()).stockQuantity(request.getInitialStock())
                 .reservedQuantity(0).active(true).build();
         return productRepository.save(product);
+    }
+
+    @Transactional
+    public Product updateImage(Long productId, String imageUrl) {
+        Product product = getProduct(productId);
+        product.setImageUrl(blankToNull(imageUrl));
+        return productRepository.save(product);
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     @Transactional(readOnly = true)

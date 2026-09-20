@@ -28,6 +28,10 @@ replay_pid*.log
 .env.*
 !.env.example
 *.pem
+
+# Generated dashboard (embeds DB credentials)
+dashboard/services-dashboard.html
+dashboard/**/services-dashboard.html
 *.key
 
 # Logs and temporary files

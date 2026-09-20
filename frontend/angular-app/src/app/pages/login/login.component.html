@@ -1,0 +1,51 @@
+<header class="topbar">
+    <div class="brand"><span class="brand-mark">M</span><span>MY E-SHOP</span></div>
+</header>
+<main>
+    <section class="intro">
+        <p class="eyebrow">Fresh goods, considered delivery</p>
+        <h1>Your everyday shop,<br><em>beautifully sorted.</em></h1>
+        <p class="status" *ngIf="status">{{ status }}</p>
+    </section>
+    <section class="signin auth-block">
+        <div><span class="eyebrow">ACCOUNT</span>
+            <h2>{{ showRegister ? 'Create an account' : 'Welcome back' }}</h2>
+        </div>
+
+        <form *ngIf="!showRegister" (ngSubmit)="login()">
+            <label class="field"><span>Username, email or mobile</span>
+                <input [(ngModel)]="identifier" name="identifier" type="text" autocomplete="username"
+                    placeholder="Username, email or mobile number" required></label>
+            <label class="field"><span>Password</span>
+                <input [(ngModel)]="password" name="password" type="password" autocomplete="current-password"
+                    placeholder="Password" required></label>
+            <button type="submit">Sign in</button>
+        </form>
+
+        <form *ngIf="showRegister" class="register-form" (ngSubmit)="register()">
+            <label class="field"><span>Email *</span>
+                <input [(ngModel)]="reg.email" name="regEmail" type="email" autocomplete="email" placeholder="you@example.com" required></label>
+            <label class="field"><span>Username *</span>
+                <input [(ngModel)]="reg.username" name="regUsername" type="text" autocomplete="username" placeholder="3-30 letters, digits, _ or ."
+                    minlength="3" maxlength="30" required></label>
+            <label class="field"><span>Mobile number *</span>
+                <input [(ngModel)]="reg.mobileNumber" name="regMobile" type="tel" autocomplete="tel" placeholder="e.g. +919876543210" required></label>
+            <label class="field"><span>Date of birth *</span>
+                <input [(ngModel)]="reg.dateOfBirth" name="regDob" type="date" [max]="today" required></label>
+            <label class="field"><span>Gender *</span>
+                <select [(ngModel)]="reg.gender" name="regGender" required>
+                    <option value="" disabled>Select gender</option>
+                    <option value="MALE">Male</option>
+                    <option value="FEMALE">Female</option>
+                    <option value="OTHER">Other</option>
+                </select></label>
+            <label class="field"><span>Password *</span>
+                <input [(ngModel)]="reg.password" name="regPassword" type="password" autocomplete="new-password"
+                    placeholder="Min 8 chars, letters + numbers" required></label>
+            <button type="submit">Create account</button>
+        </form>
+
+        <p class="toggle-auth"><a href="javascript:void(0)" (click)="toggleRegister()">{{ showRegister ? 'Already have
+                an account? Sign in' : "Don't have an account? Sign up" }}</a></p>
+    </section>
+</main>

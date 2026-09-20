@@ -1,15 +1,16 @@
 package com.myeshopping.authservice.dto;
 
-import jakarta.validation.constraints.Email;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data
 public class LoginRequest {
 
-    @NotBlank(message = "Email is required")
-    @Email(message = "Email must be valid")
-    private String email;
+    /** Username, email address or mobile number. "email" is still accepted as an alias. */
+    @NotBlank(message = "Username, email or mobile number is required")
+    @JsonAlias("email")
+    private String identifier;
 
     @NotBlank(message = "Password is required")
     private String password;

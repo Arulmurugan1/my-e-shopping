@@ -1,0 +1,20 @@
+apiVersion: 1
+datasources:
+  - name: OpenSearch Logs
+    uid: opensearch-logs
+    type: grafana-opensearch-datasource
+    access: proxy
+    url: https://opensearch:9200
+    basicAuth: true
+    basicAuthUser: admin
+    secureJsonData:
+      basicAuthPassword: MyEshopping123!
+    jsonData:
+      database: "eshop-logs-*"
+      timeField: "@timestamp"
+      flavor: opensearch
+      version: 2.17.1
+      tlsSkipVerify: true
+      logMessageField: message
+      logLevelField: level
+    editable: true

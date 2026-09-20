@@ -20,8 +20,8 @@ public class CustomerProfile {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private Long userId;
+    @Column(nullable = false, unique = true, length = 36)
+    private String userId;
 
     @Column(nullable = false, length = 100)
     private String firstName;

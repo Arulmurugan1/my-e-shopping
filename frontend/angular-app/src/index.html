@@ -1,1 +1,55 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><title>My E-Shop</title><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><app-root></app-root></body></html>
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>My E-Shop</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+
+<body>
+    <app-root>
+        <div id="boot-status" style="font-family:sans-serif;color:#6d7972;padding:48px 24px;text-align:center">
+            Loading My E-Shop&hellip;
+        </div>
+    </app-root>
+    <script>
+        (function () {
+            var KEY = 'chunkReloadedAt';
+
+            function reloadOnce() {
+                try {
+                    var last = Number(sessionStorage.getItem(KEY) || 0);
+                    if (Date.now() - last > 15000) {
+                        sessionStorage.setItem(KEY, String(Date.now()));
+                        location.reload();
+                        return true;
+                    }
+                } catch (e) { /* storage blocked */ }
+                return false;
+            }
+
+            function isChunkError(text) {
+                return /dynamically imported module|ChunkLoadError|Loading chunk|Importing a module script failed/i.test(text || '');
+            }
+
+            window.addEventListener('unhandledrejection', function (e) {
+                var reason = e.reason;
+                if (isChunkError(reason && (reason.message || String(reason)))) { reloadOnce(); }
+            });
+            window.addEventListener('error', function (e) {
+                if (isChunkError(e.message)) { reloadOnce(); }
+            });
+
+            setTimeout(function () {
+                var boot = document.getElementById('boot-status');
+                if (boot) {
+                    boot.innerHTML = 'The app did not start. The dev server may be rebuilding &mdash; ' +
+                        '<a href="/">reload the page</a>. If it keeps happening, check that <code>ng serve</code> is running.';
+                }
+            }, 8000);
+        })();
+    </script>
+</body>
+
+</html>

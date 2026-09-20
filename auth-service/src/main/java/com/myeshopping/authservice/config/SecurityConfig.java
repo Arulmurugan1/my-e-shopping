@@ -38,6 +38,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/v1/auth/admin/**").hasAnyAuthority("ADMIN", "SUPER_ADMIN")
                 .requestMatchers(
                     "/api/v1/auth/**",
                     "/actuator/health",

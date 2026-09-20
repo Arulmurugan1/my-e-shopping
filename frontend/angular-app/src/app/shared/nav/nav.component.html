@@ -1,0 +1,16 @@
+<header class="topbar">
+    <div class="brand"><span class="brand-mark">M</span><span>MY E-SHOP</span></div>
+    <nav class="nav-links">
+        <ng-container *ngIf="isAdmin()">
+            <a routerLink="/admin/users" routerLinkActive="active">Users</a>
+            <a routerLink="/admin/products" routerLinkActive="active">SKUs</a>
+            <a routerLink="/admin/customers" routerLinkActive="active">Customers</a>
+            <span class="nav-sep">|</span>
+        </ng-container>
+        <a routerLink="/home" routerLinkActive="active" class="nav-home">Home</a>
+        <a routerLink="/products" routerLinkActive="active">Order Now</a>
+        <a routerLink="/cart" routerLinkActive="active">Cart</a>
+        <span class="nav-email">{{ email() }}<span class="role-badge" *ngIf="isAdmin()">{{ roleLabel() }}</span></span>
+        <button class="logout" (click)="logout()">Sign out</button>
+    </nav>
+</header>

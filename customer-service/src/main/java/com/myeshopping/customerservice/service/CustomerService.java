@@ -26,21 +26,36 @@ public class CustomerService {
 
         CustomerProfile profile = existing.orElseGet(CustomerProfile::new);
         profile.setUserId(request.getUserId());
-        profile.setFirstName(request.getFirstName());
-        profile.setLastName(request.getLastName());
-        profile.setPhoneNumber(request.getPhoneNumber());
+        if (request.getFirstName() != null && !request.getFirstName().isBlank()) {
+            profile.setFirstName(request.getFirstName());
+        } else if (profile.getFirstName() == null) {
+            profile.setFirstName("Customer");
+        }
+        if (request.getLastName() != null && !request.getLastName().isBlank()) {
+            profile.setLastName(request.getLastName());
+        } else if (profile.getLastName() == null) {
+            profile.setLastName("");
+        }
+        if (request.getPhoneNumber() != null) {
+            profile.setPhoneNumber(request.getPhoneNumber());
+        }
 
         return customerProfileRepository.save(profile);
     }
 
     @Transactional(readOnly = true)
-    public CustomerProfile getProfileByUserId(Long userId) {
+    public List<CustomerProfile> getAllProfiles() {
+        return customerProfileRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public CustomerProfile getProfileByUserId(String userId) {
         return customerProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Customer profile not found for userId: " + userId));
     }
 
     @Transactional
-    public CustomerAddress addAddress(Long userId, AddressRequest request) {
+    public CustomerAddress addAddress(String userId, AddressRequest request) {
         CustomerProfile profile = getProfileByUserId(userId);
 
         if (request.isPrimary()) {
@@ -66,12 +81,12 @@ public class CustomerService {
     }
 
     @Transactional(readOnly = true)
-    public List<CustomerAddress> getAddresses(Long userId) {
+    public List<CustomerAddress> getAddresses(String userId) {
         CustomerProfile profile = getProfileByUserId(userId);
         return customerAddressRepository.findByCustomerId(profile.getId());
     }
 
-    public CustomerProfileDashboard getDashboard(Long userId) {
+    public CustomerProfileDashboard getDashboard(String userId) {
         CustomerProfile profile = getProfileByUserId(userId);
         List<CustomerAddress> addresses = getAddresses(userId);
         return CustomerProfileDashboard.builder()
