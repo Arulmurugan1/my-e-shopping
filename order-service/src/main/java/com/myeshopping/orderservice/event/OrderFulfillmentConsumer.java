@@ -46,12 +46,14 @@ public class OrderFulfillmentConsumer {
         String correlationId = event.path("correlationId").asText(null);
         if (correlationId != null) {
             MDC.put("correlationId", correlationId);
+            MDC.put("traceId", correlationId);
         }
         try {
             log.info("Fulfilment started for order {}", orderId);
             fulfil(orderId);
         } finally {
             MDC.remove("correlationId");
+            MDC.remove("traceId");
         }
     }
 

@@ -19,7 +19,7 @@
             <label class="field"><span>Password</span>
                 <input [(ngModel)]="password" name="password" type="password" autocomplete="current-password"
                     placeholder="Password" required></label>
-            <button type="submit">Sign in</button>
+            <button type="submit" [disabled]="signingIn">{{ signingIn ? 'Signing in...' : 'Sign in' }}</button>
         </form>
 
         <form *ngIf="showRegister" class="register-form" (ngSubmit)="register()">

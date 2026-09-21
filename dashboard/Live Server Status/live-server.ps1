@@ -41,6 +41,22 @@ function Get-ServiceRunCommand {
     return "set MAVEN_OPTS=-Xms128m -Xmx384m -XX:+UseSerialGC && mvn spring-boot:run$profileArg"
 }
 
+function Get-ServiceArgLine {
+    param($svc)
+    # Hidden run: no console window; output goes to <repo>\run-logs\<service>.log
+    $logDir = Join-Path $RepoRoot 'run-logs'
+    New-Item -ItemType Directory -Force $logDir | Out-Null
+    $log = Join-Path $logDir "$($svc.Name).log"
+    return "/c $(Get-ServiceRunCommand $svc) > `"$log`" 2>&1"
+}
+
+function Start-DeferredScript {
+    param([string]$Script)
+    # -EncodedCommand avoids quote-stripping when the script contains quoted paths with spaces.
+    $enc = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($Script))
+    Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-WindowStyle', 'Hidden', '-EncodedCommand', $enc) -WindowStyle Hidden | Out-Null
+}
+
 function Start-ServiceProcess {
     param($svc)
     $path = Get-ServiceWorkingDir $svc
@@ -49,10 +65,9 @@ function Start-ServiceProcess {
     $existing = (Get-ListeningPortToPidMap)[$svc.Port]
     if ($existing) { return @{ ok = $false; message = "$($svc.Name) is already running (PID $($existing.Pid))" } }
 
-    $runCmd = Get-ServiceRunCommand $svc
-    $argLine = "/k title $($svc.Name) && $runCmd"
+    $argLine = Get-ServiceArgLine $svc
     try {
-        Start-Process -FilePath 'cmd.exe' -ArgumentList $argLine -WorkingDirectory $path -WindowStyle Normal | Out-Null
+        Start-Process -FilePath 'cmd.exe' -ArgumentList $argLine -WorkingDirectory $path -WindowStyle Hidden | Out-Null
         return @{ ok = $true; message = "Starting $($svc.Name)..." }
     } catch {
         return @{ ok = $false; message = "Failed to start $($svc.Name): $($_.Exception.Message)" }
@@ -79,13 +94,12 @@ function Restart-ServiceProcess {
     param($svc)
     $existing = (Get-ListeningPortToPidMap)[$svc.Port]
     $path = Get-ServiceWorkingDir $svc
-    $runCmd = Get-ServiceRunCommand $svc
-    $startArgLine = "/k title $($svc.Name) && $runCmd"
+    $startArgLine = Get-ServiceArgLine $svc
     $killPart = if ($existing) { "taskkill /PID $($existing.Pid) /T /F | Out-Null; Start-Sleep -Seconds 2; " } else { '' }
     # The stop-wait-start sequence runs in a detached background process so the dashboard's
     # own HTTP listener (single-threaded) never blocks on it and keeps serving status polls.
-    $deferredCmd = "$killPart Start-Process -FilePath 'cmd.exe' -ArgumentList '$startArgLine' -WorkingDirectory '$path' -WindowStyle Normal"
-    Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-WindowStyle', 'Hidden', '-Command', $deferredCmd) -WindowStyle Hidden | Out-Null
+    $deferredCmd = "$killPart Start-Process -FilePath 'cmd.exe' -ArgumentList '$startArgLine' -WorkingDirectory '$path' -WindowStyle Hidden"
+    Start-DeferredScript $deferredCmd
     return @{ ok = $true; message = "Restarting $($svc.Name)..." }
 }
 
@@ -111,16 +125,15 @@ function Start-AllServices {
         if ($portToPid[[int]$s.Port]) { continue }
         $path = Get-ServiceWorkingDir $s
         if (-not (Test-Path $path)) { continue }
-        $runCmd = Get-ServiceRunCommand $s
-        $argLine = "/k title $($s.Name) && $runCmd"
+        $argLine = Get-ServiceArgLine $s
         # Staggered ~2s apart, same pacing as start-all-services.bat, so we don't spawn
         # a dozen+ JVMs at once and repeat the native-memory OOM crash seen before.
-        $parts += "Start-Process -FilePath 'cmd.exe' -ArgumentList '$argLine' -WorkingDirectory '$path' -WindowStyle Normal; Start-Sleep -Seconds 2"
+        $parts += "Start-Process -FilePath 'cmd.exe' -ArgumentList '$argLine' -WorkingDirectory '$path' -WindowStyle Hidden; Start-Sleep -Seconds 2"
         $targets += $s.Name
     }
     if ($parts.Count -eq 0) { return @{ ok = $false; message = 'All services are already running' } }
     $deferredCmd = $parts -join '; '
-    Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-WindowStyle', 'Hidden', '-Command', $deferredCmd) -WindowStyle Hidden | Out-Null
+    Start-DeferredScript $deferredCmd
     $script:StartAllTargets = $targets
     return @{ ok = $true; message = "Starting $($parts.Count) service(s) (staggered, ~2s apart)..."; targets = $targets }
 }

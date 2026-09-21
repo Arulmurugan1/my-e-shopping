@@ -20,11 +20,14 @@ export class LoginComponent {
   password = '';
   status = '';
   showRegister = false;
+  signingIn = false;
   reg: RegisterDetails = { email: '', username: '', mobileNumber: '', dateOfBirth: '', gender: '', password: '' };
   readonly today = new Date().toISOString().slice(0, 10);
 
   login() {
+    if (this.signingIn) { return; }
     this.status = '';
+    this.signingIn = true;
     this.api.login(this.identifier.trim(), this.password).subscribe({
       next: response => {
         const { token, userId, email, username, role } = response.data;
@@ -33,10 +36,16 @@ export class LoginComponent {
             this.auth.setSession(token, userId, profileResponse.data.id, email, role);
             this.router.navigate(['/home']);
           },
-          error: () => { this.status = 'Signed in, but could not set up your customer profile.'; }
+          error: () => {
+            this.signingIn = false;
+            this.status = 'Signed in, but could not set up your customer profile.';
+          }
         });
       },
-      error: err => { this.status = this.describe(err, 'Sign-in failed. Check your details and password.'); }
+      error: err => {
+        this.signingIn = false;
+        this.status = this.describe(err, 'Sign-in failed. Check your details and password.');
+      }
     });
   }
 

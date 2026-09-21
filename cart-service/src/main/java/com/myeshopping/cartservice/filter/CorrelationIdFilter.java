@@ -33,12 +33,14 @@ public class CorrelationIdFilter implements jakarta.servlet.Filter {
         long start = System.currentTimeMillis();
         try {
             MDC.put(MDC_KEY, correlationId);
+            MDC.put("traceId", correlationId);
             chain.doFilter(request, response);
         } finally {
             if (request instanceof HttpServletRequest req && response instanceof HttpServletResponse res && !req.getRequestURI().startsWith("/actuator")) {
                 log.info("{} {} -> {} ({} ms)", req.getMethod(), req.getRequestURI(), res.getStatus(), System.currentTimeMillis() - start);
             }
             MDC.remove(MDC_KEY);
+            MDC.remove("traceId");
         }
     }
 }
