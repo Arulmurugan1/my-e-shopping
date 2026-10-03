@@ -12,6 +12,8 @@ CREATE TABLE users (
     date_of_birth VARCHAR2(255),
     gender        VARCHAR2(255) NOT NULL,
     is_active     NUMBER(1) DEFAULT 1 NOT NULL,
+    access_token  VARCHAR2(2000),
+    access_token_expires_at TIMESTAMP,
     created_at    TIMESTAMP NOT NULL,
     updated_at    TIMESTAMP
 );
