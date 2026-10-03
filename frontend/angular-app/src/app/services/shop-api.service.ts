@@ -16,19 +16,36 @@ export type NewProduct = { sku: string; name: string; description: string; image
 
 @Injectable({ providedIn: 'root' })
 export class ShopApiService {
+
   private readonly http = inject(HttpClient);
   private readonly api = 'http://localhost:8080/api/v1';
 
   login(identifier: string, password: string) {
-    return this.http.post<{ data: { token: string; userId: string; email: string; username?: string; role: string } }>(`${this.api}/auth/login`, { identifier, password });
+    return this.http.post<
+      { 
+        data: { 
+                token: string; 
+                userId: string; 
+                email: string; 
+                username?: string; 
+                role: string 
+              } 
+      }>(`${this.api}/auth/login`, { identifier, password });
   }
 
   register(details: RegisterDetails) {
-    return this.http.post<{ data: { token: string } }>(`${this.api}/auth/register`, details);
+    return this.http.post<
+      { 
+          data: { 
+                  token: string 
+                } 
+      }>(`${this.api}/auth/register`, details);
   }
 
   ensureProfile(userId: string, firstName: string, lastName: string) {
-    return this.http.post<{ data: CustomerProfile }>(`${this.api}/customers/profile`, { userId, firstName, lastName });
+    return this.http.post<
+      { data: CustomerProfile }
+    >(`${this.api}/customers/profile`, { userId, firstName, lastName });
   }
 
   getProfile(userId: string) {

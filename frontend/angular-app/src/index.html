@@ -44,8 +44,10 @@
             setTimeout(function () {
                 var boot = document.getElementById('boot-status');
                 if (boot) {
-                    boot.innerHTML = 'The app did not start. The dev server may be rebuilding &mdash; ' +
-                        '<a href="/">reload the page</a>. If it keeps happening, check that <code>ng serve</code> is running.';
+                    boot.innerHTML = 
+                        'The app did not start. The dev server may be rebuilding &mdash; ' +
+                        '<a href="/">reload the page</a>. '+
+                        'If it keeps happening, check that <code>ng serve</code> is running.';
                 }
             }, 3000);
         })();

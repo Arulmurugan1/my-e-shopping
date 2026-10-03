@@ -43,7 +43,7 @@ function Get-ServiceRunCommand {
 
 function Get-ServiceArgLine {
     param($svc)
-    # Hidden run: no console window; output goes to <repo>\run-logs\<service>.log
+    # Hidden run: no console window; output goes to <repo>\logs\run-logs\<service>.log
     $logDir = Join-Path $RepoRoot 'run-logs'
     New-Item -ItemType Directory -Force $logDir | Out-Null
     $log = Join-Path $logDir "$($svc.Name).log"

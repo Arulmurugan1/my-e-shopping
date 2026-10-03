@@ -12,8 +12,9 @@ import { RegisterDetails, ShopApiService } from '../../services/shop-api.service
   templateUrl: './login.component.html'
 })
 export class LoginComponent {
-  private readonly api = inject(ShopApiService);
-  private readonly auth = inject(AuthStateService);
+
+  private readonly api    = inject(ShopApiService);
+  private readonly auth   = inject(AuthStateService);
   private readonly router = inject(Router);
 
   identifier = '';
@@ -21,28 +22,46 @@ export class LoginComponent {
   status = '';
   showRegister = false;
   signingIn = false;
-  reg: RegisterDetails = { email: '', username: '', mobileNumber: '', dateOfBirth: '', gender: '', password: '' };
+  reg: RegisterDetails = { 
+                            email: '', 
+                            username: '', 
+                            mobileNumber: '', 
+                            dateOfBirth: '', 
+                            gender: '', 
+                            password: '' 
+                        };
+
   readonly today = new Date().toISOString().slice(0, 10);
 
   login() {
-    if (this.signingIn) { return; }
-    this.status = '';
-    this.signingIn = true;
-    this.api.login(this.identifier.trim(), this.password).subscribe({
-      next: response => {
+    if (this.signingIn) return;
+
+    this.status     = '';
+    this.signingIn  = true;
+    
+    this.api.login(this.identifier.trim(), this.password).subscribe(
+    {
+      next: response => 
+      {
         const { token, userId, email, username, role } = response.data;
-        this.api.ensureProfile(userId, username || email.split('@')[0] || 'Customer', '').subscribe({
-          next: profileResponse => {
+
+        this.api.ensureProfile(userId, username || email.split('@')[0] || 'Customer', '')
+            .subscribe(
+        {
+          next: profileResponse => 
+          {
             this.auth.setSession(token, userId, profileResponse.data.id, email, role);
             this.router.navigate(['/home']);
           },
-          error: () => {
+          error: () => 
+          {
             this.signingIn = false;
             this.status = 'Signed in, but could not set up your customer profile.';
           }
         });
       },
-      error: err => {
+      error: err => 
+      {
         this.signingIn = false;
         this.status = this.describe(err, 'Sign-in failed. Check your details and password.');
       }
@@ -50,9 +69,16 @@ export class LoginComponent {
   }
 
   private describe(err: { status?: number; error?: { message?: string } }, fallback: string): string {
-    if (err?.error?.message) { return err.error.message; }
-    if (err?.status === 0) { return 'Cannot reach the server. Make sure the API gateway (port 8080) and auth-service are running.'; }
-    if (err?.status && err.status >= 500) { return 'The service is temporarily unavailable. Please try again in a moment.'; }
+    
+    if (err?.error?.message)  
+      return err.error.message; 
+    
+    if (err?.status === 0)  
+      return 'Cannot reach the server. Make sure the API gateway (port 8080) and auth-service are running.'; 
+
+    if (err?.status && err.status >= 500)  
+      return 'The service is temporarily unavailable. Please try again in a moment.'; 
+    
     return fallback;
   }
 
