@@ -13,7 +13,11 @@ public record DomainEvent(
         Object payload) {
 
     public static DomainEvent orderCreated(Long orderId, Object payload) {
-        return new DomainEvent(UUID.randomUUID(), "OrderCreated", Instant.now(), UUID.randomUUID(),
+        return orderCreated(orderId, payload, UUID.randomUUID());
+    }
+
+    public static DomainEvent orderCreated(Long orderId, Object payload, UUID correlationId) {
+        return new DomainEvent(UUID.randomUUID(), "OrderCreated", Instant.now(), correlationId,
                 "order-" + orderId, 1, payload);
     }
 }

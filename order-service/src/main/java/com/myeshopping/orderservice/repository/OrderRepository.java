@@ -13,6 +13,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findByStatus(OrderStatus status);
 
     @Query("select new com.myeshopping.orderservice.dto.CustomerOrderTotal(o.customerId, count(o), sum(o.totalAmount), max(o.createdAt)) "
-            + "from Order o where o.status <> :excluded group by o.customerId order by sum(o.totalAmount) desc")
-    List<CustomerOrderTotal> findCustomerTotals(@Param("excluded") OrderStatus excluded);
+            + "from Order o where o.status not in :excluded group by o.customerId order by sum(o.totalAmount) desc")
+    List<CustomerOrderTotal> findCustomerTotals(@Param("excluded") List<OrderStatus> excluded);
 }

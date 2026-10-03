@@ -1,7 +1,7 @@
 package com.myeshopping.deliveryservice.controller;
 import com.myeshopping.deliveryservice.dto.*; import com.myeshopping.deliveryservice.entity.Delivery; import com.myeshopping.deliveryservice.service.DeliveryService; import jakarta.validation.Valid; import lombok.RequiredArgsConstructor; import org.springframework.http.ResponseEntity; import org.springframework.web.bind.annotation.*; import java.time.Instant; import java.util.UUID;
 @RestController @RequestMapping("/api/v1/deliveries") @RequiredArgsConstructor public class DeliveryController {
- private final DeliveryService service;
+ private final DeliveryService service; private final com.myeshopping.deliveryservice.service.DeliveryFulfillmentService fulfillmentService; @PostMapping("/orders/{orderId}/fulfill") public ResponseEntity<ApiResponse<Delivery>> fulfill(@PathVariable Long orderId,@RequestParam Long shipmentId,@RequestParam(defaultValue="Customer") String recipientName){return ok("Order delivered successfully",fulfillmentService.fulfill(orderId,shipmentId,recipientName));}
  @PostMapping public ResponseEntity<ApiResponse<Delivery>> create(@Valid @RequestBody DeliveryRequest request){return ok("Delivery created successfully",service.create(request));}
  @GetMapping("/{id}") public ResponseEntity<ApiResponse<Delivery>> get(@PathVariable Long id){return ok("Delivery fetched successfully",service.get(id));}
  @GetMapping("/shipment/{shipmentId}") public ResponseEntity<ApiResponse<Delivery>> shipment(@PathVariable Long shipmentId){return ok("Delivery fetched successfully",service.getByShipment(shipmentId));}

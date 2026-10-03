@@ -47,6 +47,13 @@ public class UserEntity {
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 
+    /** The bearer token issued at the user's most recent login. */
+    @Column(name = "access_token", length = 2000)
+    private String accessToken;
+
+    @Column(name = "access_token_expires_at")
+    private LocalDateTime accessTokenExpiresAt;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

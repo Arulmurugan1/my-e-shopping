@@ -10,6 +10,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import java.util.*;
 
 @Slf4j
@@ -21,15 +23,19 @@ public class OrderService {
     private final ObjectProvider<OrderEventPublisher> orderEventPublisher;
     private final InventoryClient inventoryClient;
 
-    private static final Map<OrderStatus, Set<OrderStatus>> TRANSITIONS = Map.of(
-            OrderStatus.ORDERED, Set.of(OrderStatus.PICKING_PENDING, OrderStatus.CANCELLED),
-            OrderStatus.PICKING_PENDING, Set.of(OrderStatus.PICKING_IN_PROGRESS, OrderStatus.CANCELLED),
-            OrderStatus.PICKING_IN_PROGRESS, Set.of(OrderStatus.PICKED),
-            OrderStatus.PICKED, Set.of(OrderStatus.SHIPPING_PENDING),
-            OrderStatus.SHIPPING_PENDING, Set.of(OrderStatus.SHIPPED),
-            OrderStatus.SHIPPED, Set.of(OrderStatus.IN_DELIVERY),
-            OrderStatus.IN_DELIVERY, Set.of(OrderStatus.OUT_FOR_DELIVERY),
-            OrderStatus.OUT_FOR_DELIVERY, Set.of(OrderStatus.DELIVERED));
+    /** An order can be cancelled at any point before delivery; a delivered order can only be returned. */
+    private static final Map<OrderStatus, Set<OrderStatus>> TRANSITIONS = Map.ofEntries(
+            Map.entry(OrderStatus.ORDERED, Set.of(OrderStatus.PICKING_PENDING, OrderStatus.CANCELLED)),
+            Map.entry(OrderStatus.PICKING_PENDING, Set.of(OrderStatus.PICKING_IN_PROGRESS, OrderStatus.CANCELLED)),
+            Map.entry(OrderStatus.PICKING_IN_PROGRESS, Set.of(OrderStatus.PICKED, OrderStatus.CANCELLED)),
+            Map.entry(OrderStatus.PICKED, Set.of(OrderStatus.SHIPPING_PENDING, OrderStatus.CANCELLED)),
+            Map.entry(OrderStatus.SHIPPING_PENDING, Set.of(OrderStatus.SHIPPED, OrderStatus.CANCELLED)),
+            Map.entry(OrderStatus.SHIPPED, Set.of(OrderStatus.IN_DELIVERY, OrderStatus.CANCELLED)),
+            Map.entry(OrderStatus.IN_DELIVERY, Set.of(OrderStatus.OUT_FOR_DELIVERY, OrderStatus.CANCELLED)),
+            Map.entry(OrderStatus.OUT_FOR_DELIVERY, Set.of(OrderStatus.DELIVERED, OrderStatus.CANCELLED)),
+            Map.entry(OrderStatus.DELIVERED, Set.of(OrderStatus.RETURNED)),
+            Map.entry(OrderStatus.CANCELLED, Set.of(OrderStatus.REFUNDED)),
+            Map.entry(OrderStatus.RETURNED, Set.of(OrderStatus.REFUNDED)));
 
     @Transactional
     public Order createOrder(CreateOrderRequest request) {
@@ -85,8 +91,25 @@ public class OrderService {
         OrderEventPublisher publisher = orderEventPublisher.getIfAvailable();
 
         if (publisher != null) {
-            publisher.publishCreated(savedOrder);
-            log.info("Order {} created event published", savedOrder.getId());
+            // Publish only once the order is committed, otherwise the consumer can look for an order that is not visible yet.
+            Runnable publish = () -> {
+                try {
+                    publisher.publishCreated(savedOrder);
+                    log.info("Order {} created event published", savedOrder.getId());
+                } catch (RuntimeException ex) {
+                    log.error("Order {} was saved but its created event could not be published: {}", savedOrder.getId(), ex.getMessage());
+                }
+            };
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        publish.run();
+                    }
+                });
+            } else {
+                publish.run();
+            }
         }
 
         return savedOrder;
@@ -94,7 +117,7 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public List<CustomerOrderTotal> getCustomerTotals() {
-        return orderRepository.findCustomerTotals(OrderStatus.CANCELLED);
+        return orderRepository.findCustomerTotals(List.of(OrderStatus.CANCELLED, OrderStatus.RETURNED, OrderStatus.REFUNDED));
     }
 
     @Transactional(readOnly = true)
@@ -127,7 +150,7 @@ public class OrderService {
             throw new IllegalArgumentException("Invalid order transition from " + order.getStatus() + " to " + target);
         }
         
-        if (target == OrderStatus.CANCELLED) {
+        if (target == OrderStatus.CANCELLED || target == OrderStatus.RETURNED) {
             for (OrderLine line : order.getLines()) {
                 inventoryClient.release(line.getProductId(), line.getQuantity());
             }

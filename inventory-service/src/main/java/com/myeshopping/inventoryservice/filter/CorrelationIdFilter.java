@@ -28,9 +28,11 @@ public class CorrelationIdFilter implements jakarta.servlet.Filter {
         }
         try {
             MDC.put(MDC_KEY, correlationId);
+            MDC.put("traceId", correlationId);
             chain.doFilter(request, response);
         } finally {
             MDC.remove(MDC_KEY);
+            MDC.remove("traceId");
         }
     }
 }

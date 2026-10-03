@@ -14,10 +14,11 @@ import java.util.*;
 public class ReturnRefundService {
     private final ReturnRequestRepository repository;
     private static final Map<ReturnStatus, Set<ReturnStatus>> RETURN_TRANSITIONS = Map.of(ReturnStatus.RETURN_REQUESTED,
-            Set.of(ReturnStatus.RETURN_APPROVED, ReturnStatus.RETURN_REJECTED), ReturnStatus.RETURN_APPROVED,
+            Set.of(ReturnStatus.RETURN_APPROVED, ReturnStatus.RETURN_REJECTED, ReturnStatus.CANCELLED), ReturnStatus.RETURN_APPROVED,
             Set.of(ReturnStatus.RETURN_PICKUP_PENDING), ReturnStatus.RETURN_PICKUP_PENDING,
             Set.of(ReturnStatus.RETURNED), ReturnStatus.RETURN_REJECTED, Set.of(ReturnStatus.RETURN_CANCELLED));
     private static final Map<ReturnStatus, Set<ReturnStatus>> REFUND_TRANSITIONS = Map.of(ReturnStatus.RETURNED,
+            Set.of(ReturnStatus.REFUND_REQUESTED), ReturnStatus.CANCELLED,
             Set.of(ReturnStatus.REFUND_REQUESTED), ReturnStatus.REFUND_REQUESTED,
             Set.of(ReturnStatus.REFUND_PROCESSING, ReturnStatus.REFUND_CANCELLED, ReturnStatus.REFUND_FAILED),
             ReturnStatus.REFUND_PROCESSING, Set.of(ReturnStatus.REFUNDED, ReturnStatus.REFUND_FAILED));

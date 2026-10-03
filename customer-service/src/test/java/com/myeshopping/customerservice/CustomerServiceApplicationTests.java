@@ -28,7 +28,7 @@ class CustomerServiceApplicationTests {
     @Test
     void createCustomerAndAddressShouldWork() throws Exception {
         CustomerProfileRequest profileRequest = new CustomerProfileRequest();
-        profileRequest.setUserId(1001L);
+        profileRequest.setUserId("1001");
         profileRequest.setFirstName("Alice");
         profileRequest.setLastName("Johnson");
         profileRequest.setPhoneNumber("555-0101");

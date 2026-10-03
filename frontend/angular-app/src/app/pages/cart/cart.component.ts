@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { AuthStateService } from '../../services/auth-state.service';
 import { Cart, ShopApiService } from '../../services/shop-api.service';
 import { NavComponent } from '../../shared/nav/nav.component';
@@ -14,6 +15,7 @@ import { PopupComponent } from '../../shared/popup/popup.component';
 export class CartComponent implements OnInit {
   private readonly api = inject(ShopApiService);
   private readonly auth = inject(AuthStateService);
+  private readonly router = inject(Router);
 
   cart: Cart | null = null;
   status = '';
@@ -62,7 +64,13 @@ export class CartComponent implements OnInit {
         this.popupMessage = `Order #${response.data.id} was placed successfully. Trace ID: ${correlationId}`;
         this.popupVisible = true;
         this.cart = null;
-        this.api.clearCart(customerId, correlationId).subscribe({ error: () => { this.status = 'Order placed, but the cart could not be cleared.'; } });
+        this.api.clearCart(customerId, correlationId).subscribe(
+          { error: () => 
+              {
+                this.status = 'Order placed, but the cart could not be cleared.'; 
+                this.popupSuccess = false;
+              } 
+          });
       },
       error: err => {
         this.placing = false;
@@ -76,5 +84,6 @@ export class CartComponent implements OnInit {
 
   closePopup() {
     this.popupVisible = false;
+    if (this.popupSuccess) { this.router.navigate(['/home']); }
   }
 }

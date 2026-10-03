@@ -16,6 +16,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.Optional;
 
@@ -71,7 +73,12 @@ public class AuthService {
         // The JWT subject and the security context are keyed by email, so authenticate against it.
         authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(user.getEmail(), request.getPassword()));
 
-        return toResponse(user);
+        AuthResponse response = toResponse(user);
+        user.setAccessToken(response.getToken());
+        user.setAccessTokenExpiresAt(LocalDateTime.ofInstant(
+                jwtService.extractExpiration(response.getToken()).toInstant(), ZoneId.systemDefault()));
+        userRepository.save(user);
+        return response;
     }
 
     private Optional<UserEntity> resolve(String identifier) {

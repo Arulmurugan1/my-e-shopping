@@ -38,6 +38,7 @@ public class CorrelationIdFilter implements jakarta.servlet.Filter {
 
         try {
             MDC.put(MDC_KEY, correlationId);
+            MDC.put("traceId", correlationId);
             chain.doFilter(request, response);
         } finally {
             if (request instanceof HttpServletRequest req 
@@ -49,6 +50,7 @@ public class CorrelationIdFilter implements jakarta.servlet.Filter {
             }
             
             MDC.remove(MDC_KEY);
+            MDC.remove("traceId");
         }
 
     }

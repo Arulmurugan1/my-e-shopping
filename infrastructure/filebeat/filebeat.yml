@@ -2,9 +2,23 @@ filebeat.inputs:
   - type: log
     paths:
       - /var/log/eshop/*.log
-    json.keys_under_root: true
-    json.overwrite_keys: true
-    json.add_error_key: true
+    # A new log record starts with a timestamp; anything else (stack traces) belongs to the previous record.
+    multiline.pattern: '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}'
+    multiline.negate: true
+    multiline.match: after
+
+processors:
+  # "2026-09-20 23:59:00.123 [INFO] [thread] [traceId] [logger:42] [pid] [relative] - message"
+  - dissect:
+      tokenizer: "%{log_time} [%{level}] [%{thread}] [%{traceId}] [%{logger}] [%{pid}] [%{relative}] - %{log_message}"
+      field: "message"
+      target_prefix: ""
+      ignore_failure: true
+  - dissect:
+      tokenizer: "/var/log/eshop/%{service}.log"
+      field: "log.file.path"
+      target_prefix: ""
+      ignore_failure: true
 
 output.elasticsearch:
   hosts: ["https://opensearch:9200"]
