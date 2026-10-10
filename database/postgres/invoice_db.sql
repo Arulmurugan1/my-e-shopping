@@ -9,5 +9,11 @@ CREATE TABLE IF NOT EXISTS invoices (
     customer_id     BIGINT NOT NULL,
     amount          DOUBLE PRECISION NOT NULL,
     currency        VARCHAR(3) NOT NULL,
-    issued_at       TIMESTAMP NOT NULL
+    issued_at       TIMESTAMP NOT NULL,
+    pdf_path        VARCHAR(500),
+    pdf_file_name   VARCHAR(120)
 );
+
+-- Adds the PDF columns to an invoice_db created before they existed
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS pdf_path VARCHAR(500);
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS pdf_file_name VARCHAR(120);

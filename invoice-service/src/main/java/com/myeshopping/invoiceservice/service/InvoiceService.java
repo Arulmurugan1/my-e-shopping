@@ -35,6 +35,13 @@ public class InvoiceService {
       );
   }
 
+  @Transactional
+  public Invoice attachPdf(Invoice invoice, String pdfPath, String pdfFileName) {
+    invoice.setPdfPath(pdfPath);
+    invoice.setPdfFileName(pdfFileName);
+    return repository.save(invoice);
+  }
+
   @Transactional(readOnly = true)
   public Invoice get(Long id) {
     return repository

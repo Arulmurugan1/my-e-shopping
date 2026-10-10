@@ -12,14 +12,21 @@ import com.lowagie.text.Phrase;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
+import com.myeshopping.invoiceservice.client.AuthClient;
+import com.myeshopping.invoiceservice.client.CustomerClient;
 import com.myeshopping.invoiceservice.client.OrderClient;
 import com.myeshopping.invoiceservice.dto.InvoiceRequest;
 import com.myeshopping.invoiceservice.entity.Invoice;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Set;
@@ -36,7 +43,12 @@ public class InvoicePdfService {
     private static final Color LINE = new Color(0xD7, 0xD9, 0xCF);
 
     private final OrderClient orderClient;
+    private final CustomerClient customerClient;
+    private final AuthClient authClient;
     private final InvoiceService invoiceService;
+
+    @Value("${invoice.pdf.dir:pdf}")
+    private String pdfDir;
 
     public PdfDocument invoicePdf(Long orderId) {
         JsonNode order = orderClient.getOrder(orderId);
@@ -49,7 +61,24 @@ public class InvoicePdfService {
         request.setCurrency("USD");
         Invoice invoice = invoiceService.generate(request);
 
-        return new PdfDocument("invoice-" + invoice.getInvoiceNumber() + ".pdf", render(invoice, order));
+        String filename = "invoice-" + invoice.getInvoiceNumber() + ".pdf";
+        byte[] bytes = render(invoice, order);
+        String loginId = authClient.getEmail(customerClient.getUserId(invoice.getCustomerId()));
+        String folderName = loginId.replaceAll("[\\\\/:*?\"<>|]", "_") + "-" + invoice.getCustomerId();
+        Path file = store(folderName, filename, bytes);
+        invoiceService.attachPdf(invoice, file.toString(), filename);
+        return new PdfDocument(filename, bytes);
+    }
+
+    /** Saves the PDF as pdf/{loginEmail}-{customerId}/{filename}, replacing any earlier copy so it reflects the latest order status. */
+    private Path store(String folderName, String filename, byte[] bytes) {
+        try {
+            Path folder = Paths.get(pdfDir, folderName).toAbsolutePath().normalize();
+            Files.createDirectories(folder);
+            return Files.write(folder.resolve(filename), bytes);
+        } catch (IOException ex) {
+            throw new IllegalStateException("Could not save the invoice PDF: " + ex.getMessage(), ex);
+        }
     }
 
     private byte[] render(Invoice invoice, JsonNode order) {

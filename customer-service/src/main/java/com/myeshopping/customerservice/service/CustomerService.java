@@ -49,6 +49,12 @@ public class CustomerService {
     }
 
     @Transactional(readOnly = true)
+    public CustomerProfile getProfileById(Long id) {
+        return customerProfileRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Customer profile not found: " + id));
+    }
+
+    @Transactional(readOnly = true)
     public CustomerProfile getProfileByUserId(String userId) {
         return customerProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Customer profile not found for userId: " + userId));

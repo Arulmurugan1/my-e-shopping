@@ -77,6 +77,11 @@ public class AdminUserService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public String getEmail(UUID id) {
+        return find(id).getEmail();
+    }
+
     private UserEntity actor(String email) {
         return userRepository.findByEmail(email).orElseThrow(() -> new IllegalArgumentException("Acting user not found"));
     }
