@@ -23,9 +23,9 @@ import org.springframework.stereotype.Component;
 @Profile("postgres")
 public class OrderFulfillmentConsumer {
 
-    private static final Logger log = LoggerFactory.getLogger(OrderFulfillmentConsumer.class);
+    private static final Logger log             = LoggerFactory.getLogger(OrderFulfillmentConsumer.class);
     private static final String DEFAULT_CARRIER = "MYE-Express";
-    private static final int NOTIFY_ATTEMPTS = 3;
+    private static final int NOTIFY_ATTEMPTS    = 3;
 
     private final OrderService orderService;
     private final FulfillmentClient client;
@@ -37,13 +37,17 @@ public class OrderFulfillmentConsumer {
     }
 
     @KafkaListener(topics = "order-events", groupId = "order-fulfillment")
-    public void onOrderEvent(String message) throws Exception {
+    public void onOrderEvent(String message) throws Exception 
+    {
         JsonNode event = objectMapper.readTree(message);
+        
         if (!"OrderCreated".equals(event.path("eventType").asText())) {
             return;
         }
-        long orderId = event.path("payload").path("id").asLong();
-        String correlationId = event.path("correlationId").asText(null);
+
+        long orderId            = event.path("payload").path("id").asLong();
+        String correlationId    = event.path("correlationId").asText(null);
+
         if (correlationId != null) {
             MDC.put("correlationId", correlationId);
             MDC.put("traceId", correlationId);
@@ -61,16 +65,22 @@ public class OrderFulfillmentConsumer {
         Order order = orderService.getOrder(orderId);
         OrderStatus status = order.getStatus();
 
+        delayActivity(4);
+
         if (status == OrderStatus.ORDERED || status == OrderStatus.PICKING_PENDING) {
             client.startPicking(orderId);
             status = orderService.getOrder(orderId).getStatus();
         }
+
+        delayActivity(4);
 
         if (status == OrderStatus.PICKING_IN_PROGRESS) {
             int itemCount = order.getLines().stream().mapToInt(OrderLine::getQuantity).sum();
             client.pick(orderId, Math.max(itemCount, 1));
             status = orderService.getOrder(orderId).getStatus();
         }
+
+        delayActivity(4);
 
         JsonNode shipment = null;
         if (status == OrderStatus.PICKED || status == OrderStatus.SHIPPING_PENDING) {
@@ -80,6 +90,8 @@ public class OrderFulfillmentConsumer {
             notifyWithRetry(order, shipment.path("trackingNumber").asText(""), shipment.path("carrier").asText(DEFAULT_CARRIER));
         }
 
+        delayActivity(4);
+
         if (status == OrderStatus.SHIPPED || status == OrderStatus.IN_DELIVERY || status == OrderStatus.OUT_FOR_DELIVERY) {
             if (shipment == null) {
                 shipment = client.findShipment(orderId);
@@ -87,6 +99,8 @@ public class OrderFulfillmentConsumer {
             client.deliver(orderId, shipment.path("id").asLong(), "Customer #" + order.getCustomerId());
             status = orderService.getOrder(orderId).getStatus();
         }
+
+        delayActivity(4);
 
         if (status == OrderStatus.DELIVERED) {
             log.info("Order {} is DELIVERED - fulfilment finished", orderId);
@@ -113,6 +127,15 @@ public class OrderFulfillmentConsumer {
                     return;
                 }
             }
+        }
+    }
+
+    private void delayActivity(int delayseconds){
+        try {
+            Thread.sleep(delayseconds * 1000);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            return;
         }
     }
 }

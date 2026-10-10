@@ -34,6 +34,12 @@ public class CustomerController {
         return ResponseEntity.ok(buildResponse("Customer profile saved successfully", profile));
     }
 
+    @GetMapping("/profiles/{id}")
+    public ResponseEntity<ApiResponse<CustomerProfile>> getProfileById(@PathVariable Long id) {
+        CustomerProfile profile = customerService.getProfileById(id);
+        return ResponseEntity.ok(buildResponse("Customer profile fetched successfully", profile));
+    }
+
     @GetMapping("/{userId}/profile")
     public ResponseEntity<ApiResponse<CustomerProfile>> getProfile(@PathVariable String userId) {
         CustomerProfile profile = customerService.getProfileByUserId(userId);

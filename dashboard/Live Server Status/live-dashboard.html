@@ -532,7 +532,7 @@
       var data = await res.json();
       latest.instances = data.instances || [];
       latest.databases = data.databases || [];
-      document.getElementById('meta').textContent = 'Last updated: ' + formatSmartDate(data.generatedAt) + ' (refreshes every 1s)';
+      document.getElementById('meta').textContent = 'Last updated: ' + formatSmartDate(data.generatedAt) + ' (refreshes every 5s)';
       renderStats(data);
       renderInstances();
       renderDatabases();
@@ -586,7 +586,7 @@
         setTimeout(poll, 1000);
       })
       .catch(function () { showToast('Request failed'); })
-      .then(function () { setTimeout(poll, 3000); });
+      .then(function () { setTimeout(poll, 1000); });
   }
 
   document.addEventListener('click', function (e) {
@@ -611,8 +611,8 @@
   showTab('instances');
   poll();
   pollDocker();
-  setInterval(poll, 1000);
-  setInterval(pollDocker, 3000);
+  setInterval(poll, 5000);
+  setInterval(pollDocker, 5000);
 </script>
 </body>
 </html>
