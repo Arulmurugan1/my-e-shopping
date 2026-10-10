@@ -17,8 +17,10 @@ public class MethodLoggingAspect {
 
     private static final Logger log = LoggerFactory.getLogger("method-trace");
 
-    @Around("(within(@org.springframework.stereotype.Service *) || within(@org.springframework.web.bind.annotation.RestController *))"
-            + " && !within(com.myeshopping..JwtService) && !within(com.myeshopping..CustomUserDetailsService)")
+    @Around("(within(@org.springframework.stereotype.Service *) "
+            + " || within(@org.springframework.web.bind.annotation.RestController *))"
+            + " && !within(com.myeshopping..JwtService) "
+            + " && !within(com.myeshopping..CustomUserDetailsService)")
     public Object logMethod(ProceedingJoinPoint joinPoint) throws Throwable {
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
         String method = signature.getDeclaringType().getSimpleName() + "." + signature.getName();

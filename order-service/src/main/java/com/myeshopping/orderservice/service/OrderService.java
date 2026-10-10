@@ -43,13 +43,24 @@ public class OrderService {
         Order order = Order.builder()
                             .customerId(request.getCustomerId())
                             .shippingAddress(request.getShippingAddress())
-                            .status(OrderStatus.ORDERED).build();
+                            .status(OrderStatus.ORDERED)
+                            .build();
         
         double total = 0;
-        
-        for (OrderLineRequest lineRequest : request.getLines()) {
-            
-            OrderLine line = OrderLine
+        List<OrderLineRequest> reserved = new ArrayList<>();
+
+        try 
+        {
+            for (OrderLineRequest lineRequest : request.getLines()) 
+            {
+                inventoryClient.reserve(lineRequest.getProductId(), 
+                                        lineRequest.getProductName(), 
+                                        lineRequest.getQuantity()
+                                        );
+
+                reserved.add(lineRequest);
+
+                OrderLine line = OrderLine
                                 .builder()
                                 .order(order)
                                 .productId(lineRequest.getProductId())
@@ -59,25 +70,19 @@ public class OrderService {
                                 .quantity(lineRequest.getQuantity())
                                 .build();
 
-            order.getLines().add(line);
-            
-            total += lineRequest.getUnitPrice() * lineRequest.getQuantity();
-        }
+                order.getLines().add(line);
+                total += lineRequest.getUnitPrice() * lineRequest.getQuantity();
 
-        order.setTotalAmount(total);
-
-        List<OrderLineRequest> reserved = new ArrayList<>();
-        try {
-            for (OrderLineRequest lineRequest : request.getLines()) {
-                inventoryClient.reserve(lineRequest.getProductId(), lineRequest.getProductName(), lineRequest.getQuantity());
-                reserved.add(lineRequest);
             }
         } catch (RuntimeException ex) {
             releaseQuietly(reserved);
             throw ex;
         }
 
+        order.setTotalAmount(total);
+
         Order savedOrder;
+        
         try {
             savedOrder = orderRepository.save(order);
         } catch (RuntimeException ex) {
@@ -86,22 +91,30 @@ public class OrderService {
         }
 
         log.info("Order {} created for customer {}: {} line(s), total {}",
-                savedOrder.getId(), savedOrder.getCustomerId(), savedOrder.getLines().size(), savedOrder.getTotalAmount());
+                savedOrder.getId(), 
+                savedOrder.getCustomerId(), 
+                savedOrder.getLines().size(), 
+                savedOrder.getTotalAmount());
 
         OrderEventPublisher publisher = orderEventPublisher.getIfAvailable();
 
-        if (publisher != null) {
+        if (publisher != null) 
+        {
             // Publish only once the order is committed, otherwise the consumer can look for an order that is not visible yet.
-            Runnable publish = () -> {
-                try {
-                    publisher.publishCreated(savedOrder);
-                    log.info("Order {} created event published", savedOrder.getId());
-                } catch (RuntimeException ex) {
-                    log.error("Order {} was saved but its created event could not be published: {}", savedOrder.getId(), ex.getMessage());
-                }
-            };
-            if (TransactionSynchronizationManager.isSynchronizationActive()) {
-                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            Runnable publish = () -> 
+                {
+                    try {
+                        publisher.publishCreated(savedOrder);
+                        log.info("Order {} created event published", savedOrder.getId());
+                    } catch (RuntimeException ex) {
+                        log.error("Order {} was saved but its created event could not be published: {}", savedOrder.getId(), ex.getMessage());
+                    }
+                };
+            
+            if (TransactionSynchronizationManager.isSynchronizationActive()) 
+            {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() 
+                {
                     @Override
                     public void afterCommit() {
                         publish.run();
