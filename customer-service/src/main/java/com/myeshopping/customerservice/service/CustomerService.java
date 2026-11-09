@@ -7,6 +7,8 @@ import com.myeshopping.customerservice.entity.CustomerProfile;
 import com.myeshopping.customerservice.repository.CustomerAddressRepository;
 import com.myeshopping.customerservice.repository.CustomerProfileRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +22,7 @@ public class CustomerService {
     private final CustomerProfileRepository customerProfileRepository;
     private final CustomerAddressRepository customerAddressRepository;
 
+    @CacheEvict(cacheNames = "customerProfiles", key = "#request.userId")
     @Transactional
     public CustomerProfile createOrUpdateProfile(CustomerProfileRequest request) {
         Optional<CustomerProfile> existing = customerProfileRepository.findByUserId(request.getUserId());
@@ -54,12 +57,14 @@ public class CustomerService {
                 .orElseThrow(() -> new IllegalArgumentException("Customer profile not found: " + id));
     }
 
+    @Cacheable(cacheNames = "customerProfiles", key = "#userId")
     @Transactional(readOnly = true)
     public CustomerProfile getProfileByUserId(String userId) {
         return customerProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Customer profile not found for userId: " + userId));
     }
 
+    @CacheEvict(cacheNames = "customerAddresses", key = "#userId")
     @Transactional
     public CustomerAddress addAddress(String userId, AddressRequest request) {
         CustomerProfile profile = getProfileByUserId(userId);
@@ -86,6 +91,7 @@ public class CustomerService {
         return customerAddressRepository.save(address);
     }
 
+    @Cacheable(cacheNames = "customerAddresses", key = "#userId")
     @Transactional(readOnly = true)
     public List<CustomerAddress> getAddresses(String userId) {
         CustomerProfile profile = getProfileByUserId(userId);

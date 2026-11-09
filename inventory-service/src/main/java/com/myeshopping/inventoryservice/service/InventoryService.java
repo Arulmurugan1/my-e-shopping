@@ -6,15 +6,20 @@ import com.myeshopping.inventoryservice.dto.StockReservationRequest;
 import com.myeshopping.inventoryservice.entity.Product;
 import com.myeshopping.inventoryservice.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
+// Every write evicts the product caches, so stock and price reads stay consistent within this instance.
 @Service
 @RequiredArgsConstructor
 public class InventoryService {
     private final ProductRepository productRepository;
 
+    @CacheEvict(cacheNames = "productCatalog", allEntries = true)
     @Transactional
     public Product createProduct(ProductRequest request) {
         if (productRepository.findBySkuAndActiveTrue(request.getSku()).isPresent()) {
@@ -28,6 +33,9 @@ public class InventoryService {
         return productRepository.save(product);
     }
 
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "products", key = "#productId"),
+            @CacheEvict(cacheNames = "productCatalog", allEntries = true)})
     @Transactional
     public Product updateImage(Long productId, String imageUrl) {
         Product product = getProduct(productId);
@@ -39,6 +47,7 @@ public class InventoryService {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
+    @Cacheable(cacheNames = "products", key = "#productId")
     @Transactional(readOnly = true)
     public Product getProduct(Long productId) {
         return productRepository.findById(productId)
@@ -46,9 +55,13 @@ public class InventoryService {
                 .orElseThrow(() -> new IllegalArgumentException("Active product not found: " + productId));
     }
 
+    @Cacheable(cacheNames = "productCatalog")
     @Transactional(readOnly = true)
     public List<Product> getProducts() { return productRepository.findByActiveTrue(); }
 
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "products", key = "#productId"),
+            @CacheEvict(cacheNames = "productCatalog", allEntries = true)})
     @Transactional
     public Product reserveStock(Long productId, StockReservationRequest request) {
         Product product = getProduct(productId);
@@ -59,6 +72,9 @@ public class InventoryService {
         return productRepository.save(product);
     }
 
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "products", key = "#productId"),
+            @CacheEvict(cacheNames = "productCatalog", allEntries = true)})
     @Transactional
     public Product releaseStock(Long productId, StockAdjustmentRequest request) {
         Product product = getProduct(productId);
@@ -69,6 +85,9 @@ public class InventoryService {
         return productRepository.save(product);
     }
 
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "products", key = "#productId"),
+            @CacheEvict(cacheNames = "productCatalog", allEntries = true)})
     @Transactional
     public Product addStock(Long productId, StockAdjustmentRequest request) {
         Product product = getProduct(productId);
@@ -76,6 +95,9 @@ public class InventoryService {
         return productRepository.save(product);
     }
 
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "products", key = "#productId"),
+            @CacheEvict(cacheNames = "productCatalog", allEntries = true)})
     @Transactional
     public void deactivateProduct(Long productId) {
         Product product = getProduct(productId);

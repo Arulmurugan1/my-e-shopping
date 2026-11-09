@@ -5,6 +5,8 @@ import com.myeshopping.authservice.entity.Role;
 import com.myeshopping.authservice.entity.UserEntity;
 import com.myeshopping.authservice.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +32,7 @@ public class AdminUserService {
                 .toList();
     }
 
+    @CacheEvict(cacheNames = "tokenUsers", key = "#result.email")
     @Transactional
     public AdminUserResponse setActive(UUID id, boolean active, String actorEmail) {
         UserEntity actor = actor(actorEmail);
@@ -43,6 +46,7 @@ public class AdminUserService {
         return toResponse(userRepository.save(target));
     }
 
+    @CacheEvict(cacheNames = "tokenUsers", key = "#result.email")
     @Transactional
     public AdminUserResponse setRole(UUID id, String role, String actorEmail) {
         UserEntity actor = actor(actorEmail);
@@ -77,6 +81,7 @@ public class AdminUserService {
         }
     }
 
+    @Cacheable(cacheNames = "userEmails", key = "#id")
     @Transactional(readOnly = true)
     public String getEmail(UUID id) {
         return find(id).getEmail();

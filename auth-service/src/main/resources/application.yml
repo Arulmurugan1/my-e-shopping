@@ -14,6 +14,11 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.OracleDialect
         format_sql: true
+  cache:
+    type: caffeine
+    cache-names: tokenUsers,userEmails
+    caffeine:
+      spec: maximumSize=5000,expireAfterWrite=5m,recordStats
 
 jwt:
   secret: myeshopping-super-secret-key-for-local-dev-1234567890

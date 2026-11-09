@@ -1,6 +1,7 @@
 package com.myeshopping.orderservice.service;
 
 import com.myeshopping.orderservice.client.InventoryClient;
+import com.myeshopping.orderservice.config.CacheConfig;
 import com.myeshopping.orderservice.dto.*;
 import com.myeshopping.orderservice.entity.*;
 import com.myeshopping.orderservice.repository.OrderRepository;
@@ -8,6 +9,10 @@ import com.myeshopping.orderservice.event.OrderEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -37,6 +42,12 @@ public class OrderService {
             Map.entry(OrderStatus.CANCELLED, Set.of(OrderStatus.REFUNDED)),
             Map.entry(OrderStatus.RETURNED, Set.of(OrderStatus.REFUNDED)));
 
+    @Caching(
+            put = @CachePut(cacheNames = CacheConfig.ORDERS, key = "#result.id"),
+            evict = {
+                    @CacheEvict(cacheNames = CacheConfig.CUSTOMER_ORDERS, key = "#request.customerId"),
+                    @CacheEvict(cacheNames = CacheConfig.CUSTOMER_TOTALS, allEntries = true)
+            })
     @Transactional
     public Order createOrder(CreateOrderRequest request) {
 
@@ -128,11 +139,13 @@ public class OrderService {
         return savedOrder;
     }
 
+    @Cacheable(cacheNames = CacheConfig.CUSTOMER_TOTALS, key = "'all'")
     @Transactional(readOnly = true)
     public List<CustomerOrderTotal> getCustomerTotals() {
         return orderRepository.findCustomerTotals(List.of(OrderStatus.CANCELLED, OrderStatus.RETURNED, OrderStatus.REFUNDED));
     }
 
+    @Cacheable(cacheNames = CacheConfig.ORDERS, key = "#id")
     @Transactional(readOnly = true)
     public Order getOrder(Long id) {
         return orderRepository
@@ -140,16 +153,26 @@ public class OrderService {
                     .orElseThrow(() -> new IllegalArgumentException("Order not found: " + id)); 
     }
 
+    @Cacheable(cacheNames = CacheConfig.CUSTOMER_ORDERS, key = "#customerId")
     @Transactional(readOnly = true)
     public List<Order> getCustomerOrders(Long customerId) { 
         return orderRepository
                         .findByCustomerIdOrderByCreatedAtDesc(customerId); 
     }
 
+    @Caching(
+            put = @CachePut(cacheNames = CacheConfig.ORDERS, key = "#id"),
+            evict = {
+                    @CacheEvict(cacheNames = CacheConfig.CUSTOMER_ORDERS, key = "#result.customerId"),
+                    @CacheEvict(cacheNames = CacheConfig.CUSTOMER_TOTALS, allEntries = true)
+            })
     @Transactional
     public Order transition(Long id, String targetStatus) {
-    
-        Order order = getOrder(id);
+
+        // Read straight from the database: a status change must never be validated against a cached copy.
+        Order order = orderRepository
+                        .findById(id)
+                        .orElseThrow(() -> new IllegalArgumentException("Order not found: " + id));
         OrderStatus target;
     
         try { 
