@@ -1,0 +1,55 @@
+# Same shape as inventory-service.yaml, which explains each field.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cart-service
+  labels: { app: cart-service }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: cart-service }
+  template:
+    metadata:
+      labels: { app: cart-service }
+    spec:
+      containers:
+        - name: cart-service
+          image: eshop/cart-service
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8083
+          envFrom:
+            - configMapRef: { name: platform }
+            - secretRef: { name: credentials }
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://$(POSTGRES_HOST):5432/cart_db
+            - name: SPRING_DATASOURCE_USERNAME
+              value: $(POSTGRES_USER)
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: $(POSTGRES_PASSWORD)
+          resources:
+            requests: { memory: 384Mi, cpu: 100m }
+            limits: { memory: 512Mi }
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 5
+            failureThreshold: 36
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cart-service
+spec:
+  selector: { app: cart-service }
+  ports:
+    - name: http
+      port: 8083
+      targetPort: http

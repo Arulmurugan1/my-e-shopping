@@ -13,6 +13,8 @@ spring:
             allowedMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
             allowedHeaders: "*"
             allowCredentials: true
+      # Each uri can be overridden with an env var, e.g. ORDER_SERVICE_BASE_URL=http://order-service:8084
+      # in Kubernetes; the localhost defaults are for running everything on one machine.
       routes:
         # Service-to-service endpoints; never exposed through the gateway
         - id: auth-internal-blocked
@@ -20,55 +22,55 @@ spring:
           predicates: [Path=/api/v1/auth/internal/**]
           filters: [SetStatus=404]
         - id: auth-service
-          uri: http://localhost:8081
+          uri: ${auth-service.base-url:http://localhost:8081}
           predicates: [Path=/api/v1/auth/**]
         - id: inventory-service
-          uri: http://localhost:8082
+          uri: ${inventory-service.base-url:http://localhost:8082}
           predicates: ["Path=/api/v1/products/**,/api/v1/inventory/**"]
         - id: cart-service
-          uri: http://localhost:8083
+          uri: ${cart-service.base-url:http://localhost:8083}
           predicates: [Path=/api/v1/cart/**]
         - id: order-service
-          uri: http://localhost:8084
+          uri: ${order-service.base-url:http://localhost:8084}
           predicates: [Path=/api/v1/orders/**]
         - id: payment-service
-          uri: http://localhost:8085
+          uri: ${payment-service.base-url:http://localhost:8085}
           predicates: [Path=/api/v1/payments/**]
         - id: picking-service
-          uri: http://localhost:8086
+          uri: ${picking-service.base-url:http://localhost:8086}
           predicates: [Path=/api/v1/picking/**]
         - id: shipment-service
-          uri: http://localhost:8087
+          uri: ${shipment-service.base-url:http://localhost:8087}
           predicates: [Path=/api/v1/shipments/**]
         - id: delivery-service
-          uri: http://localhost:8088
+          uri: ${delivery-service.base-url:http://localhost:8088}
           predicates: [Path=/api/v1/deliveries/**]
         - id: invoice-service
-          uri: http://localhost:8089
+          uri: ${invoice-service.base-url:http://localhost:8089}
           predicates: [Path=/api/v1/invoices/**]
         - id: return-refund-service
-          uri: http://localhost:8090
+          uri: ${return-refund-service.base-url:http://localhost:8090}
           predicates: [Path=/api/v1/returns/**]
         - id: customer-service
-          uri: http://localhost:8091
+          uri: ${customer-service.base-url:http://localhost:8091}
           predicates: [Path=/api/v1/customers/**]
         - id: cartonization-service
-          uri: http://localhost:8092
+          uri: ${cartonization-service.base-url:http://localhost:8092}
           predicates: [Path=/api/v1/cartonization/**]
         - id: order-group-service
-          uri: http://localhost:8093
+          uri: ${order-group-service.base-url:http://localhost:8093}
           predicates: [Path=/api/v1/order-groups/**]
         - id: notification-service
-          uri: http://localhost:8094
+          uri: ${notification-service.base-url:http://localhost:8094}
           predicates: [Path=/api/v1/notifications/**]
         - id: logging-service
-          uri: http://localhost:8095
+          uri: ${logging-service.base-url:http://localhost:8095}
           predicates: [Path=/api/v1/logs/**]
         - id: audit-service
-          uri: http://localhost:8096
+          uri: ${audit-service.base-url:http://localhost:8096}
           predicates: [Path=/api/v1/audit/**]
         - id: scheduler-service
-          uri: http://localhost:8097
+          uri: ${scheduler-service.base-url:http://localhost:8097}
           predicates: [Path=/api/v1/jobs/**]
 management:
   endpoints:

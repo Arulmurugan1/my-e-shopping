@@ -1,0 +1,56 @@
+# Same shape as inventory-service.yaml, which explains each field.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  labels: { app: order-service }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: order-service }
+  template:
+    metadata:
+      labels: { app: order-service }
+    spec:
+      containers:
+        - name: order-service
+          image: eshop/order-service
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8084
+          envFrom:
+            - configMapRef: { name: platform }
+            - secretRef: { name: credentials }
+          env:
+            # The postgres profile turns on the Kafka fulfilment pipeline. Its properties file
+            # reads ORDER_DB_URL, POSTGRES_USER and POSTGRES_PASSWORD; Kafka, Redis and the
+            # other services' URLs come from the platform ConfigMap.
+            - name: SPRING_PROFILES_ACTIVE
+              value: postgres
+            - name: ORDER_DB_URL
+              value: jdbc:postgresql://$(POSTGRES_HOST):5432/order_db
+          resources:
+            requests: { memory: 384Mi, cpu: 100m }
+            limits: { memory: 512Mi }
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 5
+            failureThreshold: 36
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+spec:
+  selector: { app: order-service }
+  ports:
+    - name: http
+      port: 8084
+      targetPort: http

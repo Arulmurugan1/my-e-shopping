@@ -1,0 +1,68 @@
+# Base manifests, written as if everything ran inside the cluster.
+# Overlays (see ../overlays) change only what differs per environment.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: eshop
+
+resources:
+  - namespace.yaml
+  - auth-service.yaml
+  - inventory-service.yaml
+  - cart-service.yaml
+  - order-service.yaml
+  - api-gateway.yaml
+
+# Every pod gets these as env vars (envFrom). Spring maps ORDER_SERVICE_BASE_URL to the
+# order-service.base-url property, KAFKA_BOOTSTRAP_SERVERS to spring.kafka.bootstrap-servers, etc.
+# Kustomize adds a content hash to the name, so changing a value rolls the pods automatically.
+configMapGenerator:
+  - name: platform
+    literals:
+      # Infrastructure hosts
+      - POSTGRES_HOST=postgres
+      - ORACLE_HOST=oracle
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - REDIS_HOST=redis
+      # Services, by their Kubernetes Service DNS names
+      - AUTH_SERVICE_BASE_URL=http://auth-service:8081
+      - INVENTORY_SERVICE_BASE_URL=http://inventory-service:8082
+      - INVENTORY_BASE_URL=http://inventory-service:8082
+      - CART_SERVICE_BASE_URL=http://cart-service:8083
+      - ORDER_SERVICE_BASE_URL=http://order-service:8084
+      - PAYMENT_SERVICE_BASE_URL=http://payment-service:8085
+      - PICKING_SERVICE_BASE_URL=http://picking-service:8086
+      - SHIPMENT_SERVICE_BASE_URL=http://shipment-service:8087
+      - DELIVERY_SERVICE_BASE_URL=http://delivery-service:8088
+      - INVOICE_SERVICE_BASE_URL=http://invoice-service:8089
+      - RETURN_REFUND_SERVICE_BASE_URL=http://return-refund-service:8090
+      - CUSTOMER_SERVICE_BASE_URL=http://customer-service:8091
+      - CARTONIZATION_SERVICE_BASE_URL=http://cartonization-service:8092
+      - ORDER_GROUP_SERVICE_BASE_URL=http://order-group-service:8093
+      - NOTIFICATION_SERVICE_BASE_URL=http://notification-service:8094
+      - LOGGING_SERVICE_BASE_URL=http://logging-service:8095
+      - AUDIT_SERVICE_BASE_URL=http://audit-service:8096
+      - SCHEDULER_SERVICE_BASE_URL=http://scheduler-service:8097
+
+# Local-development values, the same ones in docker-compose.yml and application.* files.
+# Never commit real credentials here; in a real cluster create the Secret out of band
+# (kubectl create secret, Sealed Secrets, or the cloud provider's secret store).
+secretGenerator:
+  - name: credentials
+    literals:
+      - POSTGRES_USER=myeshopping
+      - POSTGRES_PASSWORD=myeshopping
+      - ORACLE_USER=system
+      - ORACLE_PASSWORD=myeshopping123
+      - JWT_SECRET=myeshopping-super-secret-key-for-local-dev-1234567890
+
+images:
+  - name: eshop/api-gateway
+    newTag: "0.1"
+  - name: eshop/auth-service
+    newTag: "0.1"
+  - name: eshop/inventory-service
+    newTag: "0.1"
+  - name: eshop/cart-service
+    newTag: "0.1"
+  - name: eshop/order-service
+    newTag: "0.1"

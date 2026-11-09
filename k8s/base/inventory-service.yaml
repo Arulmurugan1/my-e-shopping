@@ -1,0 +1,59 @@
+# The reference manifest: the other services follow the same shape.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-service
+  labels: { app: inventory-service }
+spec:
+  replicas: 1
+  # The Deployment manages the pods whose labels match this selector.
+  selector:
+    matchLabels: { app: inventory-service }
+  template:
+    metadata:
+      labels: { app: inventory-service }
+    spec:
+      containers:
+        - name: inventory-service
+          image: eshop/inventory-service       # tag is set in kustomization.yaml (images:)
+          imagePullPolicy: IfNotPresent        # use the locally built image, no registry
+          ports:
+            - name: http
+              containerPort: 8082
+          envFrom:
+            - configMapRef: { name: platform }
+            - secretRef: { name: credentials }
+          env:
+            # $(VAR) expands variables already defined above, including those from envFrom.
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://$(POSTGRES_HOST):5432/inventory_db
+            - name: SPRING_DATASOURCE_USERNAME
+              value: $(POSTGRES_USER)
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: $(POSTGRES_PASSWORD)
+          resources:
+            requests: { memory: 384Mi, cpu: 100m }   # reserved for scheduling
+            limits: { memory: 512Mi }                # exceeded -> container is OOM-killed and restarted
+          # Spring Boot turns on /actuator/health/liveness and /readiness when it detects Kubernetes.
+          startupProbe:                              # gives the JVM up to 3 minutes to start
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 5
+            failureThreshold: 36
+          livenessProbe:                             # failing -> restart the container
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 10
+          readinessProbe:                            # failing -> stop sending it traffic
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 10
+---
+# A stable name (inventory-service) and virtual IP in front of the pods above.
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-service
+spec:
+  selector: { app: inventory-service }
+  ports:
+    - name: http
+      port: 8082
+      targetPort: http

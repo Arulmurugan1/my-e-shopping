@@ -1,0 +1,18 @@
+# Images only need <service>/target/<service>-*.jar; keep everything else out of the
+# build context so it stays small.
+**/target/*
+!*/target/*.jar
+**/src
+**/node_modules
+frontend
+logs
+run-logs
+document
+Prompt
+dashboard
+infrastructure
+database
+docs
+.git
+.claude
+**/*.log

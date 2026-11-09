@@ -1,0 +1,47 @@
+# Docker Desktop's built-in cluster, in a hybrid setup:
+# - databases, Kafka and Redis stay in docker compose on the host;
+# - the five services in ../../base run as pods;
+# - the other services keep running on the host with mvn spring-boot:run.
+# Pods reach the host through host.docker.internal.
+#   kubectl apply -k k8s/overlays/docker-desktop
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+configMapGenerator:
+  - name: platform
+    behavior: merge
+    literals:
+      - POSTGRES_HOST=host.docker.internal
+      - ORACLE_HOST=host.docker.internal
+      - REDIS_HOST=host.docker.internal
+      # The K8S listener added to docker-compose.yml; 9092 advertises localhost, which a pod can't use.
+      - KAFKA_BOOTSTRAP_SERVERS=host.docker.internal:9093
+      # Services not deployed to the cluster yet are still on the host.
+      - PAYMENT_SERVICE_BASE_URL=http://host.docker.internal:8085
+      - PICKING_SERVICE_BASE_URL=http://host.docker.internal:8086
+      - SHIPMENT_SERVICE_BASE_URL=http://host.docker.internal:8087
+      - DELIVERY_SERVICE_BASE_URL=http://host.docker.internal:8088
+      - INVOICE_SERVICE_BASE_URL=http://host.docker.internal:8089
+      - RETURN_REFUND_SERVICE_BASE_URL=http://host.docker.internal:8090
+      - CUSTOMER_SERVICE_BASE_URL=http://host.docker.internal:8091
+      - CARTONIZATION_SERVICE_BASE_URL=http://host.docker.internal:8092
+      - ORDER_GROUP_SERVICE_BASE_URL=http://host.docker.internal:8093
+      - NOTIFICATION_SERVICE_BASE_URL=http://host.docker.internal:8094
+      - LOGGING_SERVICE_BASE_URL=http://host.docker.internal:8095
+      - AUDIT_SERVICE_BASE_URL=http://host.docker.internal:8096
+      - SCHEDULER_SERVICE_BASE_URL=http://host.docker.internal:8097
+
+# Docker Desktop publishes LoadBalancer Services on localhost:<port>. That keeps the Angular
+# app (localhost:8080) and the host-run services (which call order-service on localhost:8084,
+# auth-service on localhost:8081) working unchanged. In a real cluster these stay ClusterIP
+# and only the gateway is exposed, through an Ingress.
+patches:
+  - target:
+      kind: Service
+    patch: |-
+      - op: add
+        path: /spec/type
+        value: LoadBalancer
