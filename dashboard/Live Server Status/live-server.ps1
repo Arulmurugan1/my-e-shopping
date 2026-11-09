@@ -38,7 +38,7 @@ function Get-ServiceRunCommand {
     param($svc)
     if ($svc.IsFrontend) { return 'npm install && npm start' }
     $profileArg = if ($svc.Profile) { " -Dspring-boot.run.profiles=$($svc.Profile)" } else { '' }
-    return "set MAVEN_OPTS=-Xms128m -Xmx384m -XX:+UseSerialGC && mvn spring-boot:run$profileArg"
+    return "set JAVA_TOOL_OPTIONS=-Xms64m -Xmx256m -Xss512k -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -XX:MaxMetaspaceSize=256m -XX:ReservedCodeCacheSize=64m && mvn spring-boot:run$profileArg"
 }
 
 function Get-ServiceArgLine {

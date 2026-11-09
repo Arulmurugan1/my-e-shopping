@@ -22,7 +22,8 @@ if ($Stop) {
 New-Item -ItemType Directory -Force $logDir | Out-Null
 Remove-Item $pidFile -ErrorAction SilentlyContinue
 
-$env:MAVEN_OPTS = '-Xms128m -Xmx384m -XX:+UseSerialGC'
+# JAVA_TOOL_OPTIONS (not MAVEN_OPTS) so the cap also reaches the service JVM spring-boot:run forks.
+$env:JAVA_TOOL_OPTIONS = '-Xms64m -Xmx256m -Xss512k -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -XX:MaxMetaspaceSize=256m -XX:ReservedCodeCacheSize=64m'
 
 $services = 'api-gateway','auth-service','cart-service','cartonization-service','customer-service',
     'delivery-service','audit-service','inventory-service','invoice-service','logging-service',

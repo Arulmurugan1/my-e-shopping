@@ -1,6 +1,16 @@
+# Containers with no profile are the ones the services need, and always start:
+#   docker compose -f infrastructure/docker/docker-compose.yml up -d
+# The rest are opt-in so a 16 GB machine is not running everything at once:
+#   --profile monitoring   prometheus, grafana
+#   --profile logging      opensearch, opensearch-dashboards, filebeat
+#   --profile tools        kafka-ui
+#   --profile mongo        mongodb (not used by any service yet)
+#   --profile "*"          everything
+# Each container has a mem_limit so one engine cannot starve the JVMs on the host.
 services:
   postgres:
     image: postgres:16-alpine
+    mem_limit: 512m
     environment:
       POSTGRES_USER: myeshopping
       POSTGRES_PASSWORD: myeshopping
@@ -17,8 +27,9 @@ services:
     networks: [eshop-platform]
   redis:
     image: redis:7-alpine
+    mem_limit: 128m
     ports: ["6379:6379"]
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --maxmemory 96mb --maxmemory-policy allkeys-lru
     volumes: [redis-data:/data]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -28,13 +39,16 @@ services:
     networks: [eshop-platform]
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.1
+    mem_limit: 256m
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+      KAFKA_HEAP_OPTS: -Xms64m -Xmx128m
     ports: ["2181:2181"]
     networks: [eshop-platform]
   kafka:
     image: confluentinc/cp-kafka:7.6.1
+    mem_limit: 768m
     depends_on: [zookeeper]
     ports: ["9092:9092"]
     environment:
@@ -46,17 +60,24 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_HEAP_OPTS: -Xms256m -Xmx512m
     networks: [eshop-platform]
   kafka-ui:
     image: provectuslabs/kafka-ui:v0.7.2
+    profiles: [tools]
+    mem_limit: 384m
     ports: ["8180:8080"]
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      JAVA_OPTS: -Xmx256m
     depends_on: [kafka]
     networks: [eshop-platform]
   mongodb:
     image: mongo:7
+    profiles: [mongo]
+    mem_limit: 512m
+    command: ["--wiredTigerCacheSizeGB", "0.25"]
     environment:
       MONGO_INITDB_ROOT_USERNAME: myeshopping
       MONGO_INITDB_ROOT_PASSWORD: myeshopping
@@ -71,6 +92,8 @@ services:
     networks: [eshop-platform]
   mysql:
     image: mysql:8.0
+    mem_limit: 512m
+    command: ["--performance-schema=OFF"]
     environment:
       MYSQL_ROOT_PASSWORD: myeshopping
       MYSQL_USER: myeshopping
@@ -88,6 +111,7 @@ services:
     networks: [eshop-platform]
   oracle:
     image: gvenzl/oracle-xe:21-slim-faststart
+    mem_limit: 2g
     environment:
       ORACLE_PASSWORD: myeshopping123
       ORACLE_ALLOW_REMOTE: true
@@ -102,12 +126,16 @@ services:
     networks: [eshop-platform]
   prometheus:
     image: prom/prometheus:v2.54.1
+    profiles: [monitoring]
+    mem_limit: 512m
     ports: ["9090:9090"]
     volumes:
       - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     networks: [eshop-platform]
   grafana:
     image: grafana/grafana:11.2.0
+    profiles: [monitoring]
+    mem_limit: 256m
     ports: ["3000:3000"]
     environment:
       GF_SECURITY_ADMIN_USER: admin
@@ -120,8 +148,11 @@ services:
     networks: [eshop-platform]
   opensearch:
     image: opensearchproject/opensearch:2.17.1
+    profiles: [logging]
+    mem_limit: 1g
     environment:
       discovery.type: single-node
+      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
       compatibility.override_main_response_version: "true"
       OPENSEARCH_INITIAL_ADMIN_PASSWORD: MyEshopping123!
       DISABLE_SECURITY_PLUGIN: "false"
@@ -136,13 +167,18 @@ services:
     networks: [eshop-platform]
   opensearch-dashboards:
     image: opensearchproject/opensearch-dashboards:2.17.1
+    profiles: [logging]
+    mem_limit: 768m
     environment:
       OPENSEARCH_HOSTS: '["https://opensearch:9200"]'
+      NODE_OPTIONS: --max-old-space-size=384
     ports: ["5601:5601"]
     depends_on: [opensearch]
     networks: [eshop-platform]
   filebeat:
     image: docker.elastic.co/beats/filebeat-oss:7.12.1
+    profiles: [logging]
+    mem_limit: 128m
     user: root
     command: ["filebeat", "-e", "--strict.perms=false"]
     environment:

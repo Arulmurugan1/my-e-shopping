@@ -77,10 +77,11 @@ Invoices: `invoice-service` builds the PDF on demand at `GET /api/v1/invoices/or
 
 Prerequisites: Java 17+, Maven, Node.js, Docker Desktop.
 
-1. **Start the infrastructure** (databases, Kafka, monitoring, logging):
+1. **Start the infrastructure.** By default this starts only what the services need (Postgres, MySQL, Oracle, Redis, Kafka, Zookeeper):
    ```powershell
    docker compose -f infrastructure/docker/docker-compose.yml up -d
    ```
+   Add `--profile monitoring` (Prometheus, Grafana), `--profile logging` (OpenSearch, Filebeat), `--profile tools` (Kafka UI) or `--profile "*"` (everything) when you need them. Every container has a memory limit, and the start scripts cap each service JVM at a 256 MB heap through `JAVA_TOOL_OPTIONS`, so the whole stack fits on a 16 GB machine. On Windows, also cap Docker's WSL2 VM in `%USERPROFILE%\.wslconfig` (`[wsl2]` / `memory=6GB`), then run `wsl --shutdown` and restart Docker Desktop.
 2. **Start the services.** Use the ops dashboard (below) and click *Start All Services*, or start one manually from its folder:
    ```powershell
    mvn spring-boot:run
